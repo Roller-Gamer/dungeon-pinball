@@ -4,7 +4,12 @@ extends Node2D
 # characters are textures; the table, medieval UI and effects stay code-drawn.
 
 const WARRIOR_TEXTURE := preload("res://assets/warrior.png")
-const GOBLIN_TEXTURE := preload("res://assets/goblin.png")
+const GOBLIN_WARRIOR_TEXTURE := preload("res://assets/goblin_warrior.png")
+const GOBLIN_MAGE_TEXTURE := preload("res://assets/goblin_mage.png")
+const ELITE_GOBLIN_TEXTURE := preload("res://assets/elite_goblin.png")
+const GOBLIN_KING_TEXTURE := preload("res://assets/goblin_king.png")
+const ORC_TEXTURE := preload("res://assets/orc_warrior.png")
+const SIDE_SPIKE_TEXTURE := preload("res://assets/side_spike_v2.png")
 const SFX_WALL := preload("res://assets/sfx/wall_hit.wav")
 const SFX_FLIPPER := preload("res://assets/sfx/flipper_hit.wav")
 const SFX_ENEMY_HIT := preload("res://assets/sfx/enemy_hit.wav")
@@ -29,8 +34,14 @@ const FIELD_LEFT := 350.0
 const FIELD_RIGHT := 1090.0
 const FIELD_TOP := 32.0
 const FIELD_BOTTOM := 886.0
+const EXIT_GATE_LEFT := 645.0
+const EXIT_GATE_RIGHT := 795.0
+const EXIT_GATE_Y := 48.0
 
 const BALL_RADIUS := 14.0
+const BALL_VISUAL_SCALE := 1.12
+const BALL_MAX_COLLISION_RADIUS := 18.0
+const BALL_MAX_VISUAL_RADIUS := 18.0
 const GRAVITY := 690.0
 const MAX_SPEED := 1320.0
 const BALL_DROP_SPEED := 120.0
@@ -47,7 +58,16 @@ const FLIPPER_POWER_WINDOW := 0.14
 const FLIPPER_LENGTH := 135.0
 const LEFT_FLIPPER_PIVOT := Vector2(560.0, 790.0)
 const RIGHT_FLIPPER_PIVOT := Vector2(880.0, 790.0)
-const CHARGE_MIN_SPEED := 1120.0
+const SIDE_TRAP_DAMAGE := 3
+const SIDE_TRAP_THICKNESS := 14.0
+const CHARGE_STAGE_SPEED_BONUS := 0.12
+const CHARGE_STAGE_DAMAGE_MULTIPLIER := 1.20
+const CHARGE_STAGE_RESTITUTION_BONUS := 0.04
+const CHARGE_RESTITUTION_CAP := 0.98
+const CHARGE_ACTIVATION_SPEED_MULTIPLIER := 1.20
+const IMPACT_REFERENCE_SPEED := 720.0
+const IMPACT_MIN_MULTIPLIER := 0.65
+const IMPACT_MAX_MULTIPLIER := 1.70
 const ENERGY_MAX := 100.0
 const HERO_MAX_HP := 100
 const ROOM_CLEAR_HEAL := 10
@@ -63,8 +83,12 @@ const IMPACT_PROC_MIN_COOLDOWN := 1.0
 const IMPACT_COOLDOWN_REDUCTION_PER_LEVEL := 0.10
 const EXPLOSION_BASE_RADIUS := 225.0
 const EXPLOSION_RADIUS_PER_LEVEL := 0.20
-const FINAL_ROOM := 5
+const FINAL_ROOM := 9
 const MAGE_SHIELD_PIERCE := 0.50
+const ORC_GUARD_ARC := deg_to_rad(90.0)
+const ORC_GUARD_BREAK_DAMAGE_MULTIPLIER := 1.25
+const ORC_GUARD_BREAK_DURATION := 4.0
+const ORC_GUARD_RESTITUTION := 0.96
 const WARLORD_MAX_HP := 150
 const WARLORD_BASE_ATTACK := 10
 const WARLORD_MINION_HEAL := 15
@@ -83,31 +107,31 @@ const HEAVY_STRIKE_DAMAGE_BONUS := 0.40
 const FURY_CORE_BONUS := 5.0
 
 const COMBAT_ART_UNLOCK_POOL := [
-	{"id": "blast_impact", "name": "RUNE BLAST", "type": "COMBAT ART", "line_1": "Non-flipper bounces can explode", "line_2": "for 5 damage in 225px. CD 10s.", "color": "f18b45", "max_level": 1},
-	{"id": "throwing_axe", "name": "THROWING AXE", "type": "COMBAT ART", "line_1": "Any solid bounce throws an axe", "line_2": "at a foe for 6 damage. CD 10s.", "color": "d6b679", "max_level": 1},
-	{"id": "spiked_shield", "name": "SPIKED SHIELD", "type": "COMBAT ART", "line_1": "Reflect 50% of blocked damage", "line_2": "back to the attacker.", "color": "78c97a", "max_level": 1},
+	{"id": "blast_impact", "name": "BLAST RUNE", "type": "RELIC  •  NEW EQUIPMENT", "line_1": "Non-flipper bounces can explode", "line_2": "for 5 damage in 225px. CD 10s.", "color": "f18b45", "max_level": 1},
+	{"id": "throwing_axe", "name": "THROWING HATCHET", "type": "WEAPON  •  NEW EQUIPMENT", "line_1": "Any solid bounce throws an axe", "line_2": "at a foe for 6 damage. CD 10s.", "color": "d6b679", "max_level": 1},
+	{"id": "spiked_shield", "name": "SPIKED PLATE", "type": "ARMOR  •  NEW EQUIPMENT", "line_1": "Reflect 50% of blocked damage", "line_2": "back to the attacker.", "color": "78c97a", "max_level": 1},
 ]
 
 const COMBAT_ART_UPGRADE_POOL := [
-	{"id": "blast_damage", "requires": "blast_impact", "name": "VOLATILE RUNES", "type": "BLAST DAMAGE", "line_1": "Rune Blast damage +25%", "line_2": "Stacks from its base damage.", "color": "f18b45", "max_level": 9},
-	{"id": "blast_radius", "requires": "blast_impact", "name": "WIDENING SIGIL", "type": "BLAST AREA", "line_1": "Rune Blast radius +20%", "line_2": "Maximum three area upgrades.", "color": "ffad55", "max_level": 3},
-	{"id": "blast_cooldown", "requires": "blast_impact", "name": "RAPID INSCRIPTION", "type": "BLAST COOLDOWN", "line_1": "Base cooldown -10% (-1s)", "line_2": "Can reach a minimum of 1 second.", "color": "ffcf66", "max_level": 9},
-	{"id": "moving_aftershock", "requires": "blast_impact", "name": "MARCHING AFTERSHOCK", "type": "BLAST MECHANISM", "line_1": "After 0.4s, explode at the warrior", "line_2": "40% damage, 70% area; follows the ball.", "color": "ffd166", "max_level": 1},
-	{"id": "axe_damage", "requires": "throwing_axe", "name": "HEAVY AXEHEAD", "type": "AXE DAMAGE", "line_1": "Throwing Axe damage +25%", "line_2": "Stacks from its base damage.", "color": "d6b679", "max_level": 9},
-	{"id": "axe_count", "requires": "throwing_axe", "name": "AXE VOLLEY", "type": "AXE QUANTITY", "line_1": "Throw one additional axe", "line_2": "at another available enemy.", "color": "e3c990", "max_level": 4},
-	{"id": "axe_cooldown", "requires": "throwing_axe", "name": "QUICK DRAW", "type": "AXE COOLDOWN", "line_1": "Base cooldown -10% (-1s)", "line_2": "Can reach a minimum of 1 second.", "color": "efbd61", "max_level": 9},
-	{"id": "returning_axe", "requires": "throwing_axe", "name": "RETURNING AXE", "type": "AXE MECHANISM", "line_1": "Axe returns toward the moving warrior", "line_2": "and may hit another foe for 60% damage.", "color": "9ed6a0", "max_level": 1},
-	{"id": "spike_damage", "requires": "spiked_shield", "name": "SHARPENED SPIKES", "type": "THORNS DAMAGE", "line_1": "All thorns damage +25%", "line_2": "Also improves Shieldbreak Retort.", "color": "78c97a", "max_level": 9},
-	{"id": "spike_scatter", "requires": "spiked_shield", "name": "SCATTERING BARBS", "type": "THORNS TARGETS", "line_1": "Reflections strike +1 nearby foe", "line_2": "for 50% damage within 220px.", "color": "9bdb83", "max_level": 4},
-	{"id": "shieldbreak_retort", "requires": "spiked_shield", "name": "SHIELDBREAK RETORT", "type": "THORNS MECHANISM", "line_1": "First shield break each enemy phase", "line_2": "deals 3 damage to every enemy.", "color": "b9efa7", "max_level": 1},
-	{"id": "shield_bash", "requires": "spiked_shield", "name": "SHIELD BASH", "type": "THORNS MECHANISM", "line_1": "Direct hits gain +1 per 10 Shield", "line_2": "Maximum +5; Shield is not consumed.", "color": "d8e7a5", "max_level": 1},
+	{"id": "blast_damage", "requires": "blast_impact", "name": "VOLATILE RUNES", "type": "RELIC FORGE  •  DAMAGE", "line_1": "Blast Rune damage +25%", "line_2": "Stacks from its base damage.", "color": "f18b45", "max_level": 9},
+	{"id": "blast_radius", "requires": "blast_impact", "name": "WIDENING SIGIL", "type": "RELIC FORGE  •  AREA", "line_1": "Blast Rune radius +20%", "line_2": "Maximum three area upgrades.", "color": "ffad55", "max_level": 3},
+	{"id": "blast_cooldown", "requires": "blast_impact", "name": "RAPID INSCRIPTION", "type": "RELIC FORGE  •  COOLDOWN", "line_1": "Base cooldown -10% (-1s)", "line_2": "Can reach a minimum of 1 second.", "color": "ffcf66", "max_level": 9},
+	{"id": "moving_aftershock", "requires": "blast_impact", "name": "MARCHING AFTERSHOCK", "type": "RELIC ENCHANTMENT", "line_1": "After 0.4s, explode at the warrior", "line_2": "40% damage, 70% area; follows the ball.", "color": "ffd166", "max_level": 1},
+	{"id": "axe_damage", "requires": "throwing_axe", "name": "HEAVY AXEHEAD", "type": "WEAPON FORGE  •  DAMAGE", "line_1": "Hatchet damage +25%", "line_2": "Stacks from its base damage.", "color": "d6b679", "max_level": 9},
+	{"id": "axe_count", "requires": "throwing_axe", "name": "AXE VOLLEY", "type": "WEAPON FORGE  •  QUANTITY", "line_1": "Throw one additional axe", "line_2": "at another available enemy.", "color": "e3c990", "max_level": 4},
+	{"id": "axe_cooldown", "requires": "throwing_axe", "name": "QUICK DRAW", "type": "WEAPON FORGE  •  COOLDOWN", "line_1": "Base cooldown -10% (-1s)", "line_2": "Can reach a minimum of 1 second.", "color": "efbd61", "max_level": 9},
+	{"id": "returning_axe", "requires": "throwing_axe", "name": "RETURNING EDGE", "type": "WEAPON ENCHANTMENT", "line_1": "Axe returns toward the moving warrior", "line_2": "and may hit another foe for 60% damage.", "color": "9ed6a0", "max_level": 1},
+	{"id": "spike_damage", "requires": "spiked_shield", "name": "SHARPENED SPIKES", "type": "ARMOR FORGE  •  THORNS", "line_1": "All thorns damage +25%", "line_2": "Also improves Shieldbreak Retort.", "color": "78c97a", "max_level": 9},
+	{"id": "spike_scatter", "requires": "spiked_shield", "name": "SCATTERING BARBS", "type": "ARMOR FORGE  •  TARGETS", "line_1": "Reflections strike +1 nearby foe", "line_2": "for 50% damage within 220px.", "color": "9bdb83", "max_level": 4},
+	{"id": "shieldbreak_retort", "requires": "spiked_shield", "name": "SHIELDBREAK RETORT", "type": "ARMOR ENCHANTMENT", "line_1": "First shield break each enemy phase", "line_2": "deals 3 damage to every enemy.", "color": "b9efa7", "max_level": 1},
+	{"id": "shield_bash", "requires": "spiked_shield", "name": "SHIELD BASH", "type": "ARMOR ENCHANTMENT", "line_1": "Direct hits gain +1 per 10 Shield", "line_2": "Maximum +5; Shield is not consumed.", "color": "d8e7a5", "max_level": 1},
 ]
 
 const TRAINING_POOL := [
-	{"id": "sharpened_blade", "name": "SHARPENED BLADE", "type": "POWER TRAINING", "line_1": "Direct impact damage +25%", "line_2": "A reliable additive increase.", "color": "e66f4f", "max_level": 9},
-	{"id": "windrunner_boots", "name": "WINDRUNNER BOOTS", "type": "MOMENTUM TRAINING", "line_1": "Flipper force and speed cap +8%", "line_2": "More speed, more impact damage.", "color": "65d5e8", "max_level": 9},
-	{"id": "giants_belt", "name": "GIANT'S BELT", "type": "MIGHT TRAINING", "line_1": "Permanent size +10%", "line_2": "Size also adds impact damage.", "color": "efbd61", "max_level": 6},
-	{"id": "shield_training", "name": "SHIELD TRAINING", "type": "GUARD TRAINING", "line_1": "All Shield gained +25%", "line_2": "Applies to Iron Oath and GUARD.", "color": "78c97a", "max_level": 9},
+	{"id": "sharpened_blade", "name": "IMPACT MASTERY", "type": "POWER TRAINING", "line_1": "Speed-to-damage conversion +10%", "line_2": "Build heavy hits without extra speed.", "color": "e66f4f", "max_level": 9},
+	{"id": "windrunner_boots", "name": "WINDRUNNER BOOTS", "type": "MOMENTUM TRAINING", "line_1": "Flipper force and speed cap +4%", "line_2": "Faster impacts also deal more damage.", "color": "65d5e8", "max_level": 9},
+	{"id": "giants_belt", "name": "GIANT'S BELT", "type": "MIGHT TRAINING", "line_1": "Permanent size +5%", "line_2": "Maximum rank 3; center drain stays open.", "color": "efbd61", "max_level": 3},
+	{"id": "shield_training", "name": "SHIELD TRAINING", "type": "GUARD TRAINING", "line_1": "All Shield gained +10%", "line_2": "Fractional gains carry between triggers.", "color": "78c97a", "max_level": 9},
 	{"id": "residual_shield", "name": "HOLD THE LINE", "type": "SHIELD RETENTION", "line_1": "Keep Shield after the enemy phase", "line_2": "25% first, then +10% each level.", "color": "9cc7bd", "max_level": 9},
 ]
 
@@ -119,7 +143,6 @@ const STARTING_STYLES := [
 
 const BG := Color("120f0d")
 const PANEL := Color("2a211a")
-const FIELD_BG := Color("182622")
 const CYAN := Color("65d5e8")
 const BLUE := Color("497ca5")
 const GOLD := Color("efbd61")
@@ -140,6 +163,7 @@ var walls: Array[Dictionary] = []
 var gate_panels: Array[Dictionary] = []
 var bumpers: Array[Dictionary] = []
 var diamond_deflectors: Array[Dictionary] = []
+var mechanism_rotors: Array[Dictionary] = []
 var enemies: Array[Dictionary] = []
 var skill_panels: Array[Dictionary] = []
 var particles: Array[Dictionary] = []
@@ -151,6 +175,7 @@ var flying_axes: Array[Dictionary] = []
 var warlord_soul_streams: Array[Dictionary] = []
 var warlord_guard_rotation := 0.0
 var warlord_guard_hit_cooldown := 0.0
+var current_layout_id := "classic"
 var trail: Array[Vector2] = []
 
 var ball_position := Vector2(720.0, LAUNCH_Y)
@@ -173,7 +198,8 @@ var right_power_timer := 0.0
 var flipper_contact_lock := 0.0
 
 var energy := 0.0
-var charge_timer := 0.0
+var charge_stage_active := false
+var charge_fx_timer := 0.0
 var dash_fx_timer := 0.0
 var might_timer := 0.0
 var war_cry_ready := false
@@ -200,6 +226,15 @@ var enemy_phase_timer := 0.0
 var enemy_attack_queue: Array[Dictionary] = []
 var enemy_attack_index := 0
 var enemy_phase_incoming_total := 0
+var objective_mode := "purge"
+var objective_title := "DEFEAT ALL ENEMIES"
+var exit_open := false
+var exit_gate_flash := 0.0
+
+var hero_level := 1
+var hero_xp := 0
+var pending_level_ups := 0
+var room_clear_resolution_pending := false
 
 var smoke_mode := false
 var smoke_frames := 0
@@ -245,7 +280,7 @@ var shield_gained_this_ball := 0
 var heavy_strike_hits := 0
 var heavy_strike_ready := false
 
-var attack_power_multiplier := 1.0
+var impact_coefficient := 1.0
 var speed_upgrade_bonus := 0.0
 var permanent_size_scale := 1.0
 var spring_plate_level := 0
@@ -307,7 +342,7 @@ func _ready() -> void:
 		starting_style_selection_active = false
 		enemies.clear()
 		_show_upgrade_selection()
-		upgrade_reward_kind = "ART_UPGRADE"
+		upgrade_reward_kind = "EQUIPMENT"
 		upgrade_choices = [
 			_upgrade_definition("moving_aftershock"),
 			_upgrade_definition("returning_axe"),
@@ -332,8 +367,8 @@ func _ready() -> void:
 		_update_board_hover(enemies[1].pos)
 	elif boss_preview_mode:
 		_select_starting_style(1)
-		stage_room = 5
-		wave = 5
+		stage_room = FINAL_ROOM
+		wave = FINAL_ROOM
 		_spawn_wave()
 		prepare_ball()
 	elif progression_test_mode:
@@ -350,7 +385,7 @@ func _upgrade_definition(id: String) -> Dictionary:
 
 
 func _run_progression_test() -> void:
-	if enemies.size() != 5 or stage_room != 1 or current_bgm_id != "normal" or bgm_player == null or bgm_player.stream != bgm_normal_stream or not bgm_normal_stream.loop or not bgm_boss_stream.loop or _enemy_death_sfx_id(enemies[0]) != "elite" or _enemy_death_sfx_id(enemies[1]) != "grunt" or COMBAT_ART_UNLOCK_POOL.size() != 3 or COMBAT_ART_UPGRADE_POOL.size() != 12 or TRAINING_POOL.size() != 5 or _goblin_gate_active() or bumpers.size() != 2 or String(bumpers[0].id) != "momentum" or not diamond_deflectors.is_empty() or walls[9].a != Vector2(620, 285) or walls[10].a != Vector2(820, 285):
+	if enemies.size() != 5 or stage_room != 1 or current_bgm_id != "normal" or bgm_player == null or bgm_player.stream != bgm_normal_stream or not bgm_normal_stream.loop or not bgm_boss_stream.loop or _enemy_death_sfx_id(enemies[0]) != "elite" or _enemy_death_sfx_id(enemies[1]) != "grunt" or COMBAT_ART_UNLOCK_POOL.size() != 3 or COMBAT_ART_UPGRADE_POOL.size() != 12 or TRAINING_POOL.size() != 5 or _goblin_gate_active() or bumpers.size() != 2 or String(bumpers[0].id) != "momentum" or not diamond_deflectors.is_empty() or walls[10].a != Vector2(620, 285) or walls[11].a != Vector2(820, 285) or objective_mode != "purge" or exit_open:
 		push_error("Progression test failed: invalid stage 1 setup")
 		_quit_test(2)
 		return
@@ -387,7 +422,7 @@ func _run_progression_test() -> void:
 	var hp_before_heavy := int(style_test_enemy.hp)
 	_damage_enemy(style_test_enemy)
 	var heavy_damage := hp_before_heavy - int(style_test_enemy.hp)
-	if heavy_damage != 13 or heavy_strike_ready or heavy_strike_hits != 0:
+	if heavy_damage != 8 or heavy_strike_ready or heavy_strike_hits != 0:
 		push_error("Progression test failed: Heavy Strike damage=%d ready=%s hits=%d" % [heavy_damage, heavy_strike_ready, heavy_strike_hits])
 		_quit_test(2)
 		return
@@ -441,6 +476,41 @@ func _run_progression_test() -> void:
 				push_error("Progression test failed: launch position overlaps skill panel")
 				_quit_test(2)
 				return
+	# Restore the longer flippers and contain size through the training cap. At
+	# their resting angle, even full training plus MIGHT remains smaller than the
+	# rendered center opening.
+	var giant_training := _upgrade_definition("giants_belt")
+	permanent_size_scale = 1.0 + float(giant_training.max_level) * 0.05
+	might_timer = MIGHT_DURATION
+	var resting_tip_gap := (RIGHT_FLIPPER_PIVOT.x - FLIPPER_LENGTH * cos(0.34)) - (LEFT_FLIPPER_PIVOT.x + FLIPPER_LENGTH * cos(0.34))
+	if int(giant_training.max_level) != 3 or absf(_current_ball_radius() - BALL_MAX_COLLISION_RADIUS) > 0.001 or resting_tip_gap <= BALL_MAX_COLLISION_RADIUS * 2.0 + 29.0:
+		push_error("Progression test failed: Giant's Belt cap no longer fits center drain")
+		_quit_test(2)
+		return
+	permanent_size_scale = 1.0
+	might_timer = 0.0
+	# Side traps bypass Shield and reset immediately, but never grant enemies a
+	# retaliation turn. The central drain keeps that more severe consequence.
+	var trap_test: Dictionary = _side_trap_segments()[0]
+	ball_position = Vector2(trap_test.a).lerp(Vector2(trap_test.b), 0.5)
+	ball_active = true
+	waiting_for_launch = false
+	hero_hp = HERO_MAX_HP
+	shield = 17
+	var trap_contact := _side_trap_contact()
+	if trap_contact.is_empty():
+		push_error("Progression test failed: side trap sensor missing")
+		_quit_test(2)
+		return
+	_trigger_side_trap(Vector2(trap_contact.pos))
+	if hero_hp != HERO_MAX_HP - SIDE_TRAP_DAMAGE or shield != 17 or not waiting_for_launch or ball_active or enemy_phase_active:
+		push_error("Progression test failed: side trap resolution")
+		_quit_test(2)
+		return
+	hero_hp = HERO_MAX_HP
+	shield = 0
+	particles.clear()
+	floating_text.clear()
 	var trigger_test_velocity := Vector2(320.0, -240.0)
 	var momentum_test: Dictionary = bumpers[0]
 	var momentum_test_pos: Vector2 = momentum_test.pos
@@ -466,6 +536,34 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: Guard trigger blocked or deflected the ball")
 		_quit_test(2)
 		return
+	var charge_test: Dictionary = skill_panels[1]
+	charge_test.inside = false
+	charge_test.cooldown = 0.0
+	energy = ENERGY_MAX
+	ball_position = charge_test.pos
+	ball_velocity = trigger_test_velocity
+	_update_fury_skill_trigger(charge_test)
+	var expected_charge_speed := trigger_test_velocity.length() * CHARGE_ACTIVATION_SPEED_MULTIPLIER
+	if not charge_stage_active or energy > 0.01 or absf(ball_velocity.length() - expected_charge_speed) > 0.01 or absf(_effective_world_restitution(WORLD_RESTITUTION) - 0.90) > 0.001:
+		push_error("Progression test failed: stage Charge activation")
+		_quit_test(2)
+		return
+	prepare_ball()
+	if not charge_stage_active:
+		push_error("Progression test failed: Charge did not survive a drain")
+		_quit_test(2)
+		return
+	charge_test.inside = false
+	charge_test.cooldown = 0.0
+	energy = ENERGY_MAX
+	ball_position = charge_test.pos
+	_update_fury_skill_trigger(charge_test)
+	if energy < ENERGY_MAX - 0.01:
+		push_error("Progression test failed: active Charge consumed Fury twice")
+		_quit_test(2)
+		return
+	charge_stage_active = false
+	charge_fx_timer = 0.0
 	momentum_test.cooldown = 0.0
 	momentum_test.inside = false
 	guard_test.cooldown = 0.0
@@ -505,7 +603,7 @@ func _run_progression_test() -> void:
 	wave_clear_timer = -1.0
 	hero_hp = HERO_MAX_HP - 16
 	_finish_room_clear()
-	if upgrade_reward_kind != "ART_UNLOCK" or hero_hp != HERO_MAX_HP - 6 or last_room_heal != ROOM_CLEAR_HEAL:
+	if upgrade_reward_kind != "EQUIPMENT" or hero_hp != HERO_MAX_HP - 6 or last_room_heal != ROOM_CLEAR_HEAL:
 		push_error("Progression test failed: first reward or room-clear healing")
 		_quit_test(2)
 		return
@@ -520,7 +618,7 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: reward not applied")
 		_quit_test(2)
 		return
-	_advance_to_next_room()
+	_complete_upgrade_selection()
 	var soldier_count := 0
 	for stage_two_enemy in enemies:
 		if String(stage_two_enemy.kind) == "soldier":
@@ -529,7 +627,57 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: stage 1-2 transition")
 		_quit_test(2)
 		return
+	blast_impact_cooldown = 1.0
+	ball_position = Vector2(720.0, EXIT_GATE_Y + _current_ball_radius() + 8.5)
+	ball_velocity = Vector2.UP * 400.0
+	if not _collide_segment(Vector2(EXIT_GATE_LEFT, EXIT_GATE_Y), Vector2(EXIT_GATE_RIGHT, EXIT_GATE_Y), 18.0, 0.62, 0.12, 0.0, "gate") or ball_velocity.y <= 0.0:
+		push_error("Progression test failed: locked exit did not rebound")
+		_quit_test(2)
+		return
+	var objective_enemy: Dictionary = {}
+	for candidate in enemies:
+		if bool(candidate.get("objective_target", false)):
+			objective_enemy = candidate
+			break
+	if objective_enemy.is_empty():
+		push_error("Progression test failed: stage 1-2 has no objective target")
+		_quit_test(2)
+		return
+	var objective_xp_before := hero_xp
+	_deal_secondary_damage(objective_enemy, int(objective_enemy.hp), GOLD, "OBJECTIVE TEST")
+	_remove_dead_enemies()
+	ball_position = Vector2(720.0, EXIT_GATE_Y)
+	if not exit_open or enemies.is_empty() or hero_xp - objective_xp_before != 20 or not _ball_entered_exit():
+		push_error("Progression test failed: elite objective/XP/exit")
+		_quit_test(2)
+		return
+	# XP can queue training, but the choice is presented only at a safe turn
+	# boundary and remains separate from the equipment treasure pool.
+	hero_level = 1
+	hero_xp = 34
+	pending_level_ups = 0
+	_grant_enemy_experience({"kind": "grunt", "is_warlord": false, "pos": Vector2.ZERO, "radius": 20.0})
+	_show_level_up_selection()
+	upgrade_choices = [_upgrade_definition("sharpened_blade")]
+	_select_upgrade(0)
+	if hero_level != 2 or hero_xp != 5 or pending_level_ups != 0 or upgrade_reward_kind != "LEVEL_UP" or absf(impact_coefficient - 1.10) > 0.001:
+		push_error("Progression test failed: queued level training")
+		_quit_test(2)
+		return
+	_complete_upgrade_selection()
+	upgrade_levels.erase("sharpened_blade")
+	upgrade_history.clear()
+	impact_coefficient = 1.0
+	hero_level = 1
+	hero_xp = 0
+	pending_level_ups = 0
+	_spawn_wave()
+	prepare_ball()
 	var test_deflector: Dictionary = diamond_deflectors[0]
+	if Vector2(test_deflector.pos) != Vector2(720.0, 425.0) or absf(float(test_deflector.half_diagonal) - 34.0) > 0.01:
+		push_error("Progression test failed: compact lower diamond")
+		_quit_test(2)
+		return
 	var test_deflector_center: Vector2 = test_deflector.pos
 	var test_deflector_points := _diamond_deflector_points(test_deflector)
 	for edge_index in 4:
@@ -698,9 +846,11 @@ func _run_progression_test() -> void:
 	shield_gain_fraction = 0.0
 	shield = 0
 	var trained_gain_one := _gain_shield(2)
-	var trained_gain_two := _gain_shield(2)
-	if trained_gain_one != 2 or trained_gain_two != 3 or shield != 5:
-		push_error("Progression test failed: fractional shield training %d/%d" % [trained_gain_one, trained_gain_two])
+	var trained_gain_five := 0
+	for _gain_index in 4:
+		trained_gain_five = _gain_shield(2)
+	if trained_gain_one != 2 or trained_gain_five != 3 or shield != 11:
+		push_error("Progression test failed: fractional shield training %d/%d total=%d" % [trained_gain_one, trained_gain_five, shield])
 		_quit_test(2)
 		return
 	residual_shield_level = 1
@@ -715,24 +865,32 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: residual shield %d/%d" % [first_retained_shield, second_retained_shield])
 		_quit_test(2)
 		return
-	# Walk the remaining reward cadence and verify the requested room variants.
+	# Walk the remaining reward cadence and verify all three table templates plus
+	# the new armoured enemy before reaching the relocated 1-9 boss.
 	residual_shield_level = 0
-	for expected_room in [3, 4, 5]:
+	var expected_enemy_counts := {3: 6, 4: 5, 5: 6, 6: 6, 7: 5, 8: 5, 9: 5}
+	var expected_mage_counts := {3: 2, 4: 2, 5: 2, 6: 0, 7: 0, 8: 2, 9: 2}
+	var expected_soldier_counts := {3: 0, 4: 0, 5: 4, 6: 4, 7: 4, 8: 0, 9: 2}
+	var expected_orc_counts := {3: 0, 4: 0, 5: 0, 6: 2, 7: 0, 8: 2, 9: 0}
+	var expected_layouts := {3: "classic", 4: "classic", 5: "ring", 6: "ring", 7: "mechanism", 8: "mechanism", 9: "classic"}
+	for expected_room in [3, 4, 5, 6, 7, 8, 9]:
 		_show_upgrade_selection()
-		var expected_reward_kind := "TRAINING" if stage_room == 3 else "ART_UPGRADE"
-		if upgrade_reward_kind != expected_reward_kind:
+		if upgrade_reward_kind != "EQUIPMENT":
 			push_error("Progression test failed: reward cadence at 1-%d" % stage_room)
 			_quit_test(2)
 			return
 		upgrade_choices.clear()
-		if upgrade_reward_kind == "TRAINING":
-			upgrade_choices.append(_upgrade_definition("residual_shield"))
-		else:
-			upgrade_choices.append(_upgrade_definition("blast_damage"))
+		upgrade_choices.append(_upgrade_definition("blast_damage"))
 		_select_upgrade(0)
-		_advance_to_next_room()
+		charge_stage_active = true
+		_complete_upgrade_selection()
+		if charge_stage_active:
+			push_error("Progression test failed: Charge survived stage transition")
+			_quit_test(2)
+			return
 		var later_mages := 0
 		var later_soldiers := 0
+		var later_orcs := 0
 		var later_warlords := 0
 		var centre_melee_count := 0
 		for later_enemy in enemies:
@@ -740,16 +898,17 @@ func _run_progression_test() -> void:
 				later_mages += 1
 			if String(later_enemy.kind) == "soldier":
 				later_soldiers += 1
+			if String(later_enemy.kind) == "orc":
+				later_orcs += 1
 			if bool(later_enemy.get("is_warlord", false)):
 				later_warlords += 1
 			if String(later_enemy.kind) == "grunt" and later_enemy.pos == Vector2(720, 395):
 				centre_melee_count += 1
-		var expected_enemy_count := 6 if expected_room == 3 else 5
 		var expected_diamond_count := 1 if expected_room == 4 else 0
 		var expected_centre_melee := 1 if expected_room == 3 else 0
-		var expected_warlords := 1 if expected_room == 5 else 0
-		var expected_soldiers := 2 if expected_room == 5 else 0
-		if stage_room != expected_room or enemies.size() != expected_enemy_count or later_mages != 2 or later_soldiers != expected_soldiers or later_warlords != expected_warlords or diamond_deflectors.size() != expected_diamond_count or centre_melee_count != expected_centre_melee or _goblin_gate_active():
+		var expected_warlords := 1 if expected_room == FINAL_ROOM else 0
+		var expected_rotor_count := 1 if expected_room in [7, 8] else 0
+		if stage_room != expected_room or enemies.size() != int(expected_enemy_counts[expected_room]) or later_mages != int(expected_mage_counts[expected_room]) or later_soldiers != int(expected_soldier_counts[expected_room]) or later_orcs != int(expected_orc_counts[expected_room]) or later_warlords != expected_warlords or diamond_deflectors.size() != expected_diamond_count or mechanism_rotors.size() != expected_rotor_count or current_layout_id != String(expected_layouts[expected_room]) or centre_melee_count != expected_centre_melee or _goblin_gate_active():
 			push_error("Progression test failed: room 1-%d layout/roster" % expected_room)
 			_quit_test(2)
 			return
@@ -778,6 +937,77 @@ func _run_progression_test() -> void:
 			hero_hp = HERO_MAX_HP
 			shield = 0
 		elif expected_room == 5:
+			# Both side crossovers and the new crown gap must be genuinely open to
+			# the ball, not merely separated visually by a hairline break.
+			for opening_center in [Vector2(572.5, 290.0), Vector2(867.5, 290.0), Vector2(720.0, 155.0)]:
+				ball_position = opening_center
+				ball_velocity = Vector2.ZERO
+				for ring_wall in walls:
+					_collide_segment(ring_wall.a, ring_wall.b, 14.0, WORLD_RESTITUTION, float(ring_wall.get("friction", 0.015)))
+				if not ball_position.is_equal_approx(opening_center):
+					push_error("Progression test failed: Ring Corridor crossover blocked at %s" % opening_center)
+					_quit_test(2)
+					return
+		elif expected_room == 6:
+			var orc_enemy: Dictionary = {}
+			for candidate in enemies:
+				if String(candidate.kind) == "orc":
+					orc_enemy = candidate
+					break
+			_update_board_hover(orc_enemy.pos)
+			var orc_hover := _board_hover_info()
+			if orc_enemy.is_empty() or board_hover_type != "enemy" or not String(orc_hover.get("line_2", "")).contains("90°") or not String(orc_hover.get("line_3", "")).contains("4s"):
+				push_error("Progression test failed: Orc hover info")
+				_quit_test(2)
+				return
+			starting_style_id = ""
+			war_cry_ready = false
+			heavy_strike_ready = false
+			heavy_strike_hits = 0
+			charge_stage_active = false
+			shield_bash_level = 0
+			ball_velocity = Vector2(400.0, 0.0)
+			orc_enemy.hp = 100
+			orc_enemy.max_hp = 100
+			orc_enemy.guard_broken_timer = 0.0
+			ball_position = orc_enemy.pos + Vector2.DOWN * (float(orc_enemy.radius) + _current_ball_radius() - 0.5)
+			ball_velocity = Vector2.UP * 400.0
+			var front_guarded := _orc_front_guard_contact(orc_enemy)
+			if not front_guarded or not _collide_circle(orc_enemy.pos, orc_enemy.radius, ORC_GUARD_RESTITUTION) or ball_velocity.y <= 0.0:
+				push_error("Progression test failed: Orc front shield collision")
+				_quit_test(2)
+				return
+			energy = 0.0
+			combo = 0
+			_block_orc_front(orc_enemy)
+			var guarded_orc_damage := 100 - int(orc_enemy.hp)
+			if energy > 0.0 or combo != 0 or float(orc_enemy.guard_flash_timer) <= 0.0:
+				push_error("Progression test failed: Orc block granted hit rewards")
+				_quit_test(2)
+				return
+			orc_enemy.hp = 100
+			orc_enemy.dead = false
+			orc_enemy.guard_broken_timer = 0.0
+			ball_position = orc_enemy.pos + Vector2.UP * (float(orc_enemy.radius) + _current_ball_radius() - 0.5)
+			ball_velocity = Vector2.DOWN * 400.0
+			_damage_enemy(orc_enemy)
+			var broken_orc_damage := 100 - int(orc_enemy.hp)
+			if guarded_orc_damage != 0 or broken_orc_damage != 7 or absf(float(orc_enemy.guard_broken_timer) - ORC_GUARD_BREAK_DURATION) > 0.01:
+				push_error("Progression test failed: Orc guard damage=%d/%d timer=%.1f" % [guarded_orc_damage, broken_orc_damage, float(orc_enemy.guard_broken_timer)])
+				_quit_test(2)
+				return
+		elif expected_room == 7:
+			var rotor: Dictionary = mechanism_rotors[0]
+			var rotor_segment := _mechanism_rotor_segment(rotor)
+			var rotor_midpoint: Vector2 = Vector2(rotor_segment.a).lerp(Vector2(rotor_segment.b), 0.5)
+			var rotor_outward: Vector2 = (Vector2(rotor_segment.b) - Vector2(rotor_segment.a)).orthogonal().normalized()
+			ball_position = rotor_midpoint + rotor_outward * (_current_ball_radius() + float(rotor.thickness) * 0.5 - 0.5)
+			ball_velocity = -rotor_outward * 400.0
+			if not _collide_segment(rotor_segment.a, rotor_segment.b, float(rotor.thickness), float(rotor.restitution), 0.08) or ball_velocity.dot(rotor_outward) <= 0.0:
+				push_error("Progression test failed: Mechanism Hall rotor collision")
+				_quit_test(2)
+				return
+		elif expected_room == FINAL_ROOM:
 			var warlord := _living_warlord()
 			if warlord.is_empty() or warlord.pos != Vector2(720, 395) or int(warlord.max_hp) != WARLORD_MAX_HP or int(warlord.attack) != WARLORD_BASE_ATTACK or _warlord_guard_count() != 4 or _enemy_death_sfx_id(warlord) != "boss" or current_bgm_id != "boss" or bgm_player.stream != bgm_boss_stream:
 				push_error("Progression test failed: final warlord setup")
@@ -818,12 +1048,17 @@ func _run_progression_test() -> void:
 				return
 			_deal_secondary_damage(warlord, int(warlord.hp), Color("e8c985"), "TEST")
 			_remove_dead_enemies()
+			if not exit_open:
+				push_error("Progression test failed: Warlord objective did not open exit")
+				_quit_test(2)
+				return
+	pending_level_ups = 0
 	_finish_room_clear()
 	if not run_complete:
 		push_error("Progression test failed: final room completion")
 		_quit_test(2)
 		return
-	print("PROGRESSION_OK stage=1-%d layouts=empty,soldiers,centre-melee,mages,warlord diamond_faces=%d styles=3 heavy=%d oath=%d fury=%.1f rewards=split blast_targets=%d aftershock=follows axe_return=second-target shield_bash=+5 axes=%d cooldown_min=%.1f thorns=5 retort_targets=%d shield_gain=2+3 retain=%d/%d warlord=150hp+15x4/rage60%% guards=4>0 direct=blocked arts=bypass bgm=normal>boss deaths=grunt/elite/boss" % [stage_room, deflector_faces_reflected, heavy_damage, IRON_OATH_SHIELD_PER_HIT, fury_gain, blast_targets_hit, 1 + axe_count_level, _impact_proc_cooldown(9), retort_targets_hit, first_retained_shield, second_retained_shield])
+	print("PROGRESSION_OK stage=1-%d layouts=classic,ring,mechanism,boss objective=elite>exit xp=6/8/12/20/50 level_training=separate equipment=weapon/armor/relic impact=continuous heavy=%d orc_guard=90deg/full-block/4s/+25%% diamond_faces=%d styles=3 oath=%d fury=%.1f blast_targets=%d aftershock=follows axe_return=second-target shield_bash=+5 axes=%d cooldown_min=%.1f thorns=5 retort_targets=%d shield_gain=fractional retain=%d/%d warlord=150hp+15x4/rage60%% guards=4>0 direct=blocked arts=bypass bgm=normal>boss deaths=grunt/elite/boss" % [stage_room, heavy_damage, deflector_faces_reflected, IRON_OATH_SHIELD_PER_HIT, fury_gain, blast_targets_hit, 1 + axe_count_level, _impact_proc_cooldown(9), retort_targets_hit, first_retained_shield, second_retained_shield])
 	for player in sfx_players:
 		player.stop()
 		player.stream = null
@@ -843,7 +1078,7 @@ func _setup_audio() -> void:
 		add_child(player)
 		sfx_players.append(player)
 	# Music uses one dedicated voice so it never consumes an impact channel.
-	# Both supplied tracks are long-form loops; stage 1-1 through 1-4 share the
+	# Both supplied tracks are long-form loops; stage 1-1 through 1-8 share the
 	# normal track without restarting it, and only the boss-room identity swaps it.
 	# Duplicate imported resources before enabling loops; preloaded constants are
 	# immutable in GDScript and should not be edited in place.
@@ -927,34 +1162,14 @@ func _setup_table() -> void:
 		{"a": Vector2(650, 382), "b": Vector2(720, 434)},
 		{"a": Vector2(720, 434), "b": Vector2(790, 382)},
 	]
-	walls = [
-		{"a": Vector2(380, 105), "b": Vector2(470, 48)},
-		{"a": Vector2(470, 48), "b": Vector2(970, 48)},
-		{"a": Vector2(970, 48), "b": Vector2(1060, 105)},
-		{"a": Vector2(380, 105), "b": Vector2(380, 640)},
-		{"a": Vector2(1060, 105), "b": Vector2(1060, 640)},
-		# A lower, shallower start turns side-lane falls inward toward the
-		# flippers instead of continuing to funnel them into the outer drains.
-		{"a": Vector2(380, 640), "b": Vector2(505, 755)},
-		{"a": Vector2(1060, 640), "b": Vector2(935, 755)},
-		{"a": Vector2(505, 755), "b": Vector2(520, 835)},
-		{"a": Vector2(935, 755), "b": Vector2(920, 835)},
-		# The upper banks are rotated and placed diagonally below the small enemies.
-		# This keeps them visually separate from the enemy tokens and avoids making
-		# a narrow pocket between the captain and the back line.
-		{"a": Vector2(620, 285), "b": Vector2(560, 355), "friction": 0.24},
-		{"a": Vector2(820, 285), "b": Vector2(880, 355), "friction": 0.24},
-		# Lower slingshot guides.
-		{"a": Vector2(505, 625), "b": Vector2(585, 690), "friction": 0.30},
-		{"a": Vector2(935, 625), "b": Vector2(855, 690), "friction": 0.30},
-	]
+	walls = _classic_table_walls()
 
 	bumpers = [
 		{"id": "momentum", "name": "MOMENTUM  +30%", "pos": Vector2(460, 340), "radius": 22.0, "visual_radius": 27.0, "color": RUNE, "implemented": true, "activation_cooldown": 3.0, "cooldown": 0.0, "pulse": 0.0, "inside": false},
 		{"id": "war_cry", "name": "WAR CRY  +40%", "pos": Vector2(980, 340), "radius": 20.0, "visual_radius": 25.0, "color": Color("e46b4f"), "implemented": true, "activation_cooldown": 4.0, "cooldown": 0.0, "pulse": 0.0, "inside": false},
 	]
 	diamond_deflectors = [
-		{"id": "centre_diamond", "pos": Vector2(720, 395), "half_diagonal": 42.0, "thickness": 10.0, "restitution": 0.92, "cooldown": 0.0, "pulse": 0.0},
+		{"id": "centre_diamond", "pos": Vector2(720, 425), "half_diagonal": 34.0, "thickness": 10.0, "restitution": 0.92, "cooldown": 0.0, "pulse": 0.0},
 	]
 
 	# These are floor trigger zones rather than physical bumpers. Entering one
@@ -983,9 +1198,49 @@ func _setup_table() -> void:
 	]
 
 
+func _classic_table_walls() -> Array[Dictionary]:
+	return [
+		{"a": Vector2(380, 105), "b": Vector2(470, 48)},
+		# A permanent opening in the back wall houses the objective exit. Its own
+		# portcullis collider closes the gap until the room target is defeated.
+		{"a": Vector2(470, 48), "b": Vector2(EXIT_GATE_LEFT, EXIT_GATE_Y)},
+		{"a": Vector2(EXIT_GATE_RIGHT, EXIT_GATE_Y), "b": Vector2(970, 48)},
+		{"a": Vector2(970, 48), "b": Vector2(1060, 105)},
+		{"a": Vector2(380, 105), "b": Vector2(380, 640)},
+		{"a": Vector2(1060, 105), "b": Vector2(1060, 640)},
+		# A lower, shallower start turns side-lane falls inward toward the
+		# flippers instead of continuing to funnel them into the outer drains.
+		{"a": Vector2(380, 640), "b": Vector2(505, 755)},
+		{"a": Vector2(1060, 640), "b": Vector2(935, 755)},
+		{"a": Vector2(505, 755), "b": Vector2(520, 835)},
+		{"a": Vector2(935, 755), "b": Vector2(920, 835)},
+		# The upper banks are rotated and placed diagonally below the small enemies.
+		# This keeps them visually separate from the enemy tokens and avoids making
+		# a narrow pocket between the captain and the back line.
+		{"a": Vector2(620, 285), "b": Vector2(560, 355), "friction": 0.24},
+		{"a": Vector2(820, 285), "b": Vector2(880, 355), "friction": 0.24},
+		# Lower slingshot guides.
+		{"a": Vector2(505, 625), "b": Vector2(585, 690), "friction": 0.30},
+		{"a": Vector2(935, 625), "b": Vector2(855, 690), "friction": 0.30},
+	]
+
+
+func _open_table_walls() -> Array[Dictionary]:
+	# New table templates share the safe cabinet and drain geometry but replace
+	# the old upper banks with their own central interaction.
+	var classic := _classic_table_walls()
+	var open_walls: Array[Dictionary] = []
+	for wall_index in range(10):
+		open_walls.append(classic[wall_index])
+	open_walls.append(classic[12])
+	open_walls.append(classic[13])
+	return open_walls
+
+
 func restart_run() -> void:
 	energy = 0.0
-	charge_timer = 0.0
+	charge_stage_active = false
+	charge_fx_timer = 0.0
 	might_timer = 0.0
 	war_cry_ready = false
 	hero_hp = HERO_MAX_HP
@@ -1019,7 +1274,7 @@ func restart_run() -> void:
 	heavy_strike_ready = false
 	upgrade_levels.clear()
 	upgrade_history.clear()
-	attack_power_multiplier = 1.0
+	impact_coefficient = 1.0
 	speed_upgrade_bonus = 0.0
 	permanent_size_scale = 1.0
 	spring_plate_level = 0
@@ -1052,6 +1307,14 @@ func restart_run() -> void:
 	enemy_attack_queue.clear()
 	enemy_attack_index = 0
 	enemy_phase_incoming_total = 0
+	objective_mode = "purge"
+	objective_title = "DEFEAT ALL ENEMIES"
+	exit_open = false
+	exit_gate_flash = 0.0
+	hero_level = 1
+	hero_xp = 0
+	pending_level_ups = 0
+	room_clear_resolution_pending = false
 	passive_enemy_phase_seen = false
 	passive_expected_hp = HERO_MAX_HP
 	left_power_timer = 0.0
@@ -1174,13 +1437,13 @@ func _enemy_hover_info(enemy: Dictionary) -> Dictionary:
 				advice = "Orbiting guards block direct hits; combat arts bypass."
 				color = Color("ef5a3c")
 			else:
-				title = "GOBLIN CAPTAIN"
-				role = "ENEMY  /  HEAVY"
+				title = "ELITE GOBLIN WARRIOR"
+				role = "ELITE  /  HEAVY"
 				ability = "HEAVY SLAM: HIGH DAMAGE"
 				advice = "Tough, dangerous, and hard to remove."
 				color = GOLD
 		"soldier":
-			title = "GOBLIN SOLDIER"
+			title = "GOBLIN FOOTMAN"
 			role = "ENEMY  /  MELEE"
 			ability = "MELEE STRIKE: MODERATE DAMAGE"
 			advice = "A tougher ordinary member of the war band."
@@ -1190,12 +1453,21 @@ func _enemy_hover_info(enemy: Dictionary) -> Dictionary:
 			ability = "ARCANE PIERCE: 50% IGNORES SHIELD"
 			advice = "Fragile. Destroy it before the drain."
 			color = ARCANE
+		"orc":
+			title = "ORC WARRIOR"
+			var break_time := float(enemy.get("guard_broken_timer", 0.0))
+			role = "ENEMY  /  ARMOURED MELEE" if break_time <= 0.0 else "ENEMY  /  BROKEN GUARD %.1fs" % break_time
+			ability = "90° FRONT GUARD: BLOCKS DIRECT HITS"
+			advice = "Flank or back hit: break guard 4s, damage +25%."
+			color = Color("d29a4a")
 	if stage_room == FINAL_ROOM and int(enemy.get("guard_slot", -1)) >= 0:
 		advice = "Bound guard: its death shatters one Warlord shield."
+	if bool(enemy.get("objective_target", false)):
+		role += "  /  OBJECTIVE"
 	return {
 		"title": title,
 		"role": role,
-		"line_1": "HP %d / %d     ATTACK %d" % [int(enemy.hp), int(enemy.max_hp), int(enemy.attack)],
+		"line_1": "HP %d / %d   ATTACK %d   XP %d" % [int(enemy.hp), int(enemy.max_hp), int(enemy.attack), _enemy_experience(enemy)],
 		"line_2": ability,
 		"line_3": advice,
 		"color": color,
@@ -1246,7 +1518,8 @@ func _fury_skill_hover_info(panel: Dictionary) -> Dictionary:
 		info.line_2 = "Gain 25 Shield for the next retaliation."
 		info.line_3 = "Unused Shield fades after the enemy phase."
 	else:
-		info.line_2 = "+30% speed and +25% damage for 3s."
+		info.line_2 = "For this stage: +12% speed, +20% damage."
+		info.line_3 = "Solid restitution +0.04; capped at 0.98."
 	return info
 
 
@@ -1288,7 +1561,54 @@ func _spawn_wave() -> void:
 		enemies[-1].guard_slot = 2
 		_add_enemy(Vector2(930, 455), 25.0, int(20.0 * hp_scale), "soldier")
 		enemies[-1].guard_slot = 3
-		_show_status("BOSS STAGE 1-5", 1.4)
+		_configure_room_objective()
+		_show_status("BOSS STAGE 1-9", 1.4)
+		return
+	if stage_room == 5:
+		# Ring Corridor I: fragile mages occupy the exposed side lanes while four
+		# melee soldiers hold the central island. The loop is useful, not empty.
+		_add_enemy(Vector2(455, 245), 27.0, int(18.0 * hp_scale), "mage")
+		_add_enemy(Vector2(985, 245), 27.0, int(18.0 * hp_scale), "mage")
+		_add_enemy(Vector2(650, 265), 26.0, int(23.0 * hp_scale), "soldier")
+		_add_enemy(Vector2(790, 265), 26.0, int(23.0 * hp_scale), "soldier")
+		_add_enemy(Vector2(625, 475), 26.0, int(22.0 * hp_scale), "soldier")
+		_add_enemy(Vector2(815, 475), 26.0, int(22.0 * hp_scale), "soldier")
+		_configure_room_objective()
+		_show_status("STAGE 1-5  RING CORRIDOR", 1.4)
+		return
+	if stage_room == 6:
+		# Ring Corridor II isolates the new armoured targets from the mage lesson:
+		# bank around the arch and strike the Orcs from above or beside them.
+		_add_enemy(Vector2(455, 245), 26.0, int(22.0 * hp_scale), "soldier")
+		_add_enemy(Vector2(985, 245), 26.0, int(22.0 * hp_scale), "soldier")
+		_add_enemy(Vector2(650, 265), 26.0, int(24.0 * hp_scale), "soldier")
+		_add_enemy(Vector2(790, 265), 26.0, int(24.0 * hp_scale), "soldier")
+		_add_enemy(Vector2(625, 475), 31.0, int(32.0 * hp_scale), "orc")
+		_add_enemy(Vector2(815, 475), 31.0, int(32.0 * hp_scale), "orc")
+		_configure_room_objective()
+		_show_status("STAGE 1-6  ARMOURED CORRIDOR", 1.4)
+		return
+	if stage_room == 7:
+		# The first Mechanism Hall teaches the moving bar with a readable all-melee
+		# formation before special enemy rules return in the following room.
+		_add_enemy(Vector2(720, 132), 46.0, int(50.0 * hp_scale), "boss")
+		_add_enemy(Vector2(490, 245), 25.0, int(22.0 * hp_scale), "soldier")
+		_add_enemy(Vector2(950, 245), 25.0, int(22.0 * hp_scale), "soldier")
+		_add_enemy(Vector2(530, 525), 25.0, int(22.0 * hp_scale), "soldier")
+		_add_enemy(Vector2(910, 525), 25.0, int(22.0 * hp_scale), "soldier")
+		_configure_room_objective()
+		_show_status("STAGE 1-7  MECHANISM HALL", 1.4)
+		return
+	if stage_room == 8:
+		# The second hall combines target priority with bank shots: remove the two
+		# mages early, then use the rotor to reach the Orcs' unguarded sides.
+		_add_enemy(Vector2(720, 132), 48.0, int(54.0 * hp_scale), "boss")
+		_add_enemy(Vector2(490, 245), 27.0, int(17.0 * hp_scale), "mage")
+		_add_enemy(Vector2(950, 245), 27.0, int(17.0 * hp_scale), "mage")
+		_add_enemy(Vector2(545, 525), 31.0, int(30.0 * hp_scale), "orc")
+		_add_enemy(Vector2(895, 525), 31.0, int(30.0 * hp_scale), "orc")
+		_configure_room_objective()
+		_show_status("STAGE 1-8  WAR MACHINE", 1.4)
 		return
 	_add_enemy(Vector2(720, 145), 52.0, int(68.0 * hp_scale), "boss")
 	var upper_kind := "mage" if stage_room >= 3 else "soldier"
@@ -1300,19 +1620,120 @@ func _spawn_wave() -> void:
 	if stage_room == 3:
 		# Room 1-3 replaces the centre diamond with an extra melee target.
 		_add_enemy(Vector2(720, 395), 27.0, int(24.0 * hp_scale), "grunt")
+	_configure_room_objective()
 	_show_status("STAGE 1-%d" % stage_room, 1.4)
+
+
+func _configure_room_objective() -> void:
+	exit_open = false
+	exit_gate_flash = 0.0
+	objective_mode = "target"
+	objective_title = "DEFEAT THE ELITE"
+	for enemy in enemies:
+		enemy.objective_target = false
+	match stage_room:
+		1:
+			objective_mode = "purge"
+			objective_title = "DEFEAT ALL ENEMIES"
+		5:
+			objective_title = "DEFEAT BOTH HEXERS"
+			for enemy in enemies:
+				if String(enemy.kind) == "mage":
+					enemy.objective_target = true
+		6:
+			objective_title = "BREAK THE ORC VANGUARD"
+			for enemy in enemies:
+				if String(enemy.kind) == "orc":
+					enemy.objective_target = true
+		FINAL_ROOM:
+			objective_title = "DEFEAT THE WARLORD"
+			for enemy in enemies:
+				if bool(enemy.get("is_warlord", false)):
+					enemy.objective_target = true
+		_:
+			for enemy in enemies:
+				if String(enemy.kind) == "boss":
+					enemy.objective_target = true
+					break
+	# Malformed/debug rooms remain completable instead of spawning a locked exit.
+	if objective_mode == "target" and _living_objective_targets() == 0 and not enemies.is_empty():
+		enemies[0].objective_target = true
+
+
+func _living_objective_targets() -> int:
+	var count := 0
+	for enemy in enemies:
+		if bool(enemy.get("objective_target", false)) and not bool(enemy.dead) and int(enemy.hp) > 0:
+			count += 1
+	return count
+
+
+func _check_objective_completion() -> void:
+	if objective_mode != "target" or exit_open or _living_objective_targets() > 0:
+		return
+	exit_open = true
+	exit_gate_flash = 1.0
+	screen_flash = maxf(screen_flash, 0.34)
+	_spawn_burst(Vector2(720.0, 82.0), GOLD, 24)
+	_show_status("OBJECTIVE COMPLETE  EXIT OPEN", 1.6)
 
 
 func _configure_room_layout() -> void:
 	diamond_deflectors.clear()
+	mechanism_rotors.clear()
+	current_layout_id = "classic"
+	walls = _classic_table_walls()
 	if stage_room in [2, 4]:
 		diamond_deflectors.append({
 			"id": "centre_diamond",
-			"pos": Vector2(720, 395),
-			"half_diagonal": 42.0,
+			"pos": Vector2(720, 425),
+			"half_diagonal": 34.0,
 			"thickness": 10.0,
 			"restitution": 0.92,
 			"cooldown": 0.0,
+			"pulse": 0.0,
+		})
+	elif stage_room in [5, 6]:
+		current_layout_id = "ring"
+		walls = _open_table_walls()
+		# One broad inverted-U island creates two useful side lanes without an
+		# unreachable outer layer. The 78px breaks at the upper-left and upper-right
+		# are wide enough for the warrior to cross between the centre and each lane.
+		var ring_segments := [
+			[Vector2(575, 585), Vector2(550, 505)],
+			[Vector2(550, 505), Vector2(550, 345)],
+			[Vector2(550, 345), Vector2(555, 325)],
+			# Left crossover opening: (555, 325) -> (590, 255).
+			[Vector2(590, 255), Vector2(610, 215)],
+			[Vector2(610, 215), Vector2(650, 165)],
+			[Vector2(650, 165), Vector2(675, 155)],
+			# Central crown opening: (675, 155) -> (765, 155).
+			[Vector2(765, 155), Vector2(790, 165)],
+			[Vector2(790, 165), Vector2(830, 215)],
+			[Vector2(830, 215), Vector2(850, 255)],
+			# Right crossover opening: (850, 255) -> (885, 325).
+			[Vector2(885, 325), Vector2(890, 345)],
+			[Vector2(890, 345), Vector2(890, 505)],
+			[Vector2(890, 505), Vector2(865, 585)],
+		]
+		for segment in ring_segments:
+			walls.append({"a": segment[0], "b": segment[1], "friction": 0.10})
+	elif stage_room in [7, 8]:
+		current_layout_id = "mechanism"
+		walls = _open_table_walls()
+		# Corner banks feed misses back toward the slow central rotor.
+		walls.append({"a": Vector2(430, 170), "b": Vector2(555, 235), "friction": 0.16})
+		walls.append({"a": Vector2(1010, 170), "b": Vector2(885, 235), "friction": 0.16})
+		walls.append({"a": Vector2(430, 515), "b": Vector2(555, 465), "friction": 0.18})
+		walls.append({"a": Vector2(1010, 515), "b": Vector2(885, 465), "friction": 0.18})
+		mechanism_rotors.append({
+			"id": "hall_rotor",
+			"pos": Vector2(720, 370),
+			"half_length": 112.0,
+			"thickness": 22.0,
+			"angle": deg_to_rad(22.0 if stage_room == 7 else -28.0),
+			"angular_speed": 0.42 if stage_room == 7 else -0.55,
+			"restitution": 0.78,
 			"pulse": 0.0,
 		})
 
@@ -1326,6 +1747,8 @@ func _add_enemy(pos: Vector2, radius: float, hp: int, kind: String) -> void:
 			base_attack = 6
 		"mage":
 			base_attack = 8
+		"orc":
+			base_attack = 9
 	var attack_scale := int(floor(float(wave - 1) / 2.0))
 	enemies.append({
 		"pos": pos,
@@ -1336,9 +1759,12 @@ func _add_enemy(pos: Vector2, radius: float, hp: int, kind: String) -> void:
 		"attack": base_attack + attack_scale,
 		"base_attack": base_attack + attack_scale,
 		"is_warlord": false,
+		"objective_target": false,
 		"rage_stacks": 0,
 		"guard_slot": -1,
 		"shield_pierce": MAGE_SHIELD_PIERCE if kind == "mage" else 0.0,
+		"guard_broken_timer": 0.0,
+		"guard_flash_timer": 0.0,
 		"attack_effect": _attack_effect_for_kind(kind),
 		"attack_fx_timer": 0.0,
 		"attack_fx_duration": 0.0,
@@ -1516,9 +1942,10 @@ func _physics_process(delta: float) -> void:
 	wall_sfx_cooldown = maxf(0.0, wall_sfx_cooldown - delta)
 	gate_hit_cooldown = maxf(0.0, gate_hit_cooldown - delta)
 	gate_hit_timer = maxf(0.0, gate_hit_timer - delta)
+	exit_gate_flash = maxf(0.0, exit_gate_flash - delta * 1.7)
 	left_power_timer = maxf(0.0, left_power_timer - delta)
 	right_power_timer = maxf(0.0, right_power_timer - delta)
-	charge_timer = maxf(0.0, charge_timer - delta)
+	charge_fx_timer = maxf(0.0, charge_fx_timer - delta)
 	dash_fx_timer = maxf(0.0, dash_fx_timer - delta)
 	might_timer = maxf(0.0, might_timer - delta)
 	blast_impact_cooldown = maxf(0.0, blast_impact_cooldown - delta)
@@ -1531,7 +1958,7 @@ func _physics_process(delta: float) -> void:
 		if upgrade_exit_timer >= 0.0:
 			upgrade_exit_timer -= delta
 			if upgrade_exit_timer <= 0.0:
-				_advance_to_next_room()
+				_complete_upgrade_selection()
 	combo_timer = maxf(0.0, combo_timer - delta)
 	if combo_timer <= 0.0:
 		combo = 0
@@ -1552,6 +1979,9 @@ func _physics_process(delta: float) -> void:
 	for deflector in diamond_deflectors:
 		deflector.cooldown = maxf(0.0, deflector.cooldown - delta)
 		deflector.pulse = maxf(0.0, deflector.pulse - delta * 4.0)
+	for rotor in mechanism_rotors:
+		rotor.angle = fmod(float(rotor.angle) + float(rotor.angular_speed) * delta, TAU)
+		rotor.pulse = maxf(0.0, float(rotor.pulse) - delta * 3.5)
 	for panel in skill_panels:
 		panel.cooldown = maxf(0.0, panel.cooldown - delta)
 		panel.pulse = maxf(0.0, panel.pulse - delta * 2.5)
@@ -1559,6 +1989,8 @@ func _physics_process(delta: float) -> void:
 		enemy.hit_cooldown = maxf(0.0, enemy.hit_cooldown - delta)
 		enemy.pulse = maxf(0.0, enemy.pulse - delta * 3.5)
 		enemy.attack_fx_timer = maxf(0.0, enemy.attack_fx_timer - delta)
+		enemy.guard_broken_timer = maxf(0.0, float(enemy.get("guard_broken_timer", 0.0)) - delta)
+		enemy.guard_flash_timer = maxf(0.0, float(enemy.get("guard_flash_timer", 0.0)) - delta)
 
 	_update_effects(delta)
 	if enemy_phase_active and not game_over and not upgrade_selection_active:
@@ -1566,9 +1998,10 @@ func _physics_process(delta: float) -> void:
 
 	if ball_active and not game_over and not upgrade_selection_active and not run_complete:
 		_simulate_ball(delta)
-		trail.push_front(ball_position)
-		if trail.size() > 28:
-			trail.pop_back()
+		if ball_active:
+			trail.push_front(ball_position)
+			if trail.size() > 28:
+				trail.pop_back()
 
 	if passive_test_mode:
 		if passive_enemy_phase_seen and not enemy_phase_active and waiting_for_launch:
@@ -1600,11 +2033,16 @@ func _simulate_ball(delta: float) -> void:
 	for _substep in SUBSTEPS:
 		ball_velocity.y += GRAVITY * step
 		ball_position += ball_velocity * step
+		if _ball_entered_exit():
+			_begin_wave_clear()
+			return
 
 		for wall in walls:
 			var wall_kick := float(wall.get("kick", 0.0))
 			var wall_friction := float(wall.get("friction", 0.015))
 			_collide_segment(wall.a, wall.b, 14.0, WORLD_RESTITUTION, wall_friction, wall_kick)
+		if not exit_open:
+			_collide_segment(Vector2(EXIT_GATE_LEFT, EXIT_GATE_Y), Vector2(EXIT_GATE_RIGHT, EXIT_GATE_Y), 18.0, 0.62, 0.12, 0.0, "gate")
 
 		if _goblin_gate_active():
 			for gate_panel in gate_panels:
@@ -1624,7 +2062,17 @@ func _simulate_ball(delta: float) -> void:
 				deflector.pulse = 1.0
 				_spawn_burst(deflector.pos, Color("d6b679"), 5)
 
+		for rotor in mechanism_rotors:
+			var rotor_segment := _mechanism_rotor_segment(rotor)
+			if _collide_segment(rotor_segment.a, rotor_segment.b, float(rotor.thickness), float(rotor.restitution), 0.08, 0.0, "mechanism"):
+				rotor.pulse = 1.0
+				_spawn_burst(rotor.pos, BRONZE, 4)
+
 		_collide_flippers()
+		var trap_contact := _side_trap_contact()
+		if not trap_contact.is_empty():
+			_trigger_side_trap(Vector2(trap_contact.pos))
+			return
 
 		for bumper in bumpers:
 			_update_combat_rune_trigger(bumper)
@@ -1642,9 +2090,17 @@ func _simulate_ball(delta: float) -> void:
 		for enemy in enemies.duplicate():
 			if enemy.dead:
 				continue
-			if _collide_circle(enemy.pos, enemy.radius, WORLD_RESTITUTION):
+			# Capture the approach before collision resolution pushes the ball out of
+			# the circle. This keeps Orc guard results stable at the shield's edges.
+			var incoming_impact_speed := ball_velocity.length()
+			var orc_front_guarded := _orc_front_guard_contact(enemy)
+			var enemy_restitution := ORC_GUARD_RESTITUTION if orc_front_guarded else WORLD_RESTITUTION
+			if _collide_circle(enemy.pos, enemy.radius, enemy_restitution):
 				if enemy.hit_cooldown <= 0.0:
-					_damage_enemy(enemy)
+					if orc_front_guarded:
+						_block_orc_front(enemy)
+					else:
+						_damage_enemy(enemy, false, true, incoming_impact_speed)
 				_on_ball_bounce(ball_position)
 
 		var speed := ball_velocity.length()
@@ -1657,9 +2113,39 @@ func _simulate_ball(delta: float) -> void:
 		_ball_drained()
 
 
+func _ball_entered_exit() -> bool:
+	return exit_open and ball_position.y <= EXIT_GATE_Y + 3.0 and ball_position.x >= EXIT_GATE_LEFT + _current_ball_radius() * 0.35 and ball_position.x <= EXIT_GATE_RIGHT - _current_ball_radius() * 0.35
+
+
 func _current_ball_radius() -> float:
 	var radius := BALL_RADIUS * permanent_size_scale
-	return radius * MIGHT_COLLISION_SCALE if might_timer > 0.0 else radius
+	if might_timer > 0.0:
+		radius *= MIGHT_COLLISION_SCALE
+	return minf(radius, BALL_MAX_COLLISION_RADIUS)
+
+
+func _side_trap_segments() -> Array[Dictionary]:
+	# These sensors close the old side drains without becoming physical walls.
+	# Reaching one is a smaller, immediate punishment than missing the center.
+	return [
+		{"a": Vector2(520.0, 835.0), "b": Vector2(548.0, 803.0), "side": 1.0},
+		{"a": Vector2(920.0, 835.0), "b": Vector2(892.0, 803.0), "side": -1.0},
+	]
+
+
+func _side_trap_contact() -> Dictionary:
+	for trap in _side_trap_segments():
+		var start: Vector2 = trap.a
+		var finish: Vector2 = trap.b
+		var segment := finish - start
+		var segment_length_sq := segment.length_squared()
+		if segment_length_sq <= 0.001:
+			continue
+		var along := clampf((ball_position - start).dot(segment) / segment_length_sq, 0.0, 1.0)
+		var closest := start + segment * along
+		if ball_position.distance_to(closest) <= _current_ball_radius() + SIDE_TRAP_THICKNESS * 0.5:
+			return {"pos": closest, "side": float(trap.side)}
+	return {}
 
 
 func _diamond_deflector_points(deflector: Dictionary) -> PackedVector2Array:
@@ -1673,12 +2159,27 @@ func _diamond_deflector_points(deflector: Dictionary) -> PackedVector2Array:
 	])
 
 
+func _mechanism_rotor_segment(rotor: Dictionary) -> Dictionary:
+	var direction := Vector2.from_angle(float(rotor.angle))
+	var half_length := float(rotor.half_length)
+	return {
+		"a": Vector2(rotor.pos) - direction * half_length,
+		"b": Vector2(rotor.pos) + direction * half_length,
+	}
+
+
 func _current_max_speed() -> float:
-	return MAX_SPEED * (1.0 + speed_upgrade_bonus)
+	var stage_bonus := CHARGE_STAGE_SPEED_BONUS if charge_stage_active else 0.0
+	return MAX_SPEED * (1.0 + speed_upgrade_bonus + stage_bonus)
+
+
+func _effective_world_restitution(base_restitution: float) -> float:
+	var charge_bonus := CHARGE_STAGE_RESTITUTION_BONUS if charge_stage_active else 0.0
+	return minf(CHARGE_RESTITUTION_CAP, base_restitution + charge_bonus)
 
 
 func _goblin_gate_active() -> bool:
-	# The trap-like V gate is disabled for all five prototype rooms. Keeping the
+	# The trap-like V gate is disabled for all nine Act I rooms. Keeping the
 	# predicate lets a later map reactivate it without restoring hidden collision.
 	return stage_room > FINAL_ROOM
 
@@ -1745,14 +2246,15 @@ func _collide_segment(a: Vector2, b: Vector2, thickness: float, restitution: flo
 	ball_position += normal * (min_distance - distance + 0.15)
 	var normal_speed := ball_velocity.dot(normal)
 	if normal_speed < 0.0:
+		var effective_restitution := _effective_world_restitution(restitution)
 		var incoming_total_speed := ball_velocity.length()
 		var impact_speed := -normal_speed
-		ball_velocity -= normal * normal_speed * (1.0 + restitution)
+		ball_velocity -= normal * normal_speed * (1.0 + effective_restitution)
 		# Approximate rubber friction from the collision impulse. This removes a
 		# portion of tangential sliding without damping free-flight speed.
 		var tangent := normal.orthogonal()
 		var tangent_speed := ball_velocity.dot(tangent)
-		var max_friction_change := absf(normal_speed) * (1.0 + restitution) * friction
+		var max_friction_change := absf(normal_speed) * (1.0 + effective_restitution) * friction
 		ball_velocity -= tangent * clampf(tangent_speed, -max_friction_change, max_friction_change)
 		if kick > 0.0:
 			ball_velocity += normal * kick
@@ -1786,7 +2288,8 @@ func _collide_circle(center: Vector2, radius: float, restitution: float) -> bool
 	ball_position += normal * (min_distance - distance + 0.15)
 	var normal_speed := ball_velocity.dot(normal)
 	if normal_speed < 0.0:
-		ball_velocity -= normal * normal_speed * (1.0 + restitution)
+		var effective_restitution := _effective_world_restitution(restitution)
+		ball_velocity -= normal * normal_speed * (1.0 + effective_restitution)
 		return true
 	return false
 
@@ -1823,7 +2326,7 @@ func _collide_flippers() -> void:
 	if spring_plate_level > 0:
 		spring_rebound_ready = true
 	_play_sfx(SFX_FLIPPER, -4.0, 0.95, 1.06)
-	_spawn_burst(ball_position, GOLD if charge_timer > 0.0 else CYAN, 7)
+	_spawn_burst(ball_position, GOLD if charge_stage_active else CYAN, 7)
 
 
 func _collide_moving_segment(pivot: Vector2, tip: Vector2, angular_velocity: float, powered: bool) -> bool:
@@ -1858,16 +2361,14 @@ func _collide_moving_segment(pivot: Vector2, tip: Vector2, angular_velocity: flo
 	var effective_contact_radius := segment.normalized() * effective_lever_length
 	# Godot's Vector2.orthogonal() uses the screen-space clockwise perpendicular;
 	# negate it to obtain d(radius)/dt for the angle convention used here.
-	var surface_velocity := -effective_contact_radius.orthogonal() * angular_velocity * (1.0 + speed_upgrade_bonus)
+	var stage_speed_bonus := CHARGE_STAGE_SPEED_BONUS if charge_stage_active else 0.0
+	var surface_velocity := -effective_contact_radius.orthogonal() * angular_velocity * (1.0 + speed_upgrade_bonus + stage_speed_bonus)
 	var relative_velocity := ball_velocity - surface_velocity
 	var relative_normal_speed := relative_velocity.dot(normal)
 	if relative_normal_speed < 0.0:
 		var restitution := FLIPPER_POWERED_RESTITUTION if powered else FLIPPER_IDLE_RESTITUTION
 		relative_velocity -= normal * relative_normal_speed * (1.0 + restitution)
 		ball_velocity = relative_velocity + surface_velocity
-		var charge_floor := CHARGE_MIN_SPEED * (1.0 + speed_upgrade_bonus * 0.65)
-		if charge_timer > 0.0 and ball_velocity.length() > 0.1 and ball_velocity.length() < charge_floor:
-			ball_velocity = ball_velocity.normalized() * charge_floor
 		# A controlled flipper is the warrior's launcher, not an impact target:
 		# it may throw an axe, but it cannot discharge Rune Blast.
 		_on_ball_bounce(contact_point, false)
@@ -1881,9 +2382,53 @@ func _shield_bash_bonus() -> int:
 	return mini(5, int(floor(float(shield) / 10.0)))
 
 
-func _damage_enemy(enemy: Dictionary) -> void:
-	var speed_multiplier := _speed_damage_multiplier(ball_velocity.length())
-	var charge_multiplier := 1.25 if charge_timer > 0.0 else 1.0
+func _orc_front_guard_contact(enemy: Dictionary) -> bool:
+	if String(enemy.get("kind", "")) != "orc" or float(enemy.get("guard_broken_timer", 0.0)) > 0.0:
+		return false
+	var contact_direction: Vector2 = ball_position - Vector2(enemy.pos)
+	if contact_direction.length_squared() <= 0.001:
+		return false
+	# Orcs face the player's flippers. A 90-degree painted shield arc covers the
+	# lower quarter of the collision circle, leaving bank shots from above open.
+	return contact_direction.normalized().dot(Vector2.DOWN) >= cos(ORC_GUARD_ARC * 0.5)
+
+
+func _block_orc_front(enemy: Dictionary) -> void:
+	enemy.hit_cooldown = 0.18
+	enemy.pulse = 1.0
+	enemy.guard_flash_timer = 0.28
+	_play_sfx(SFX_SHIELD_BLOCK, -4.5, 0.88, 0.98)
+	_show_status("ORC FRONT GUARD  BLOCKED", 0.55)
+	_add_floating_text(enemy.pos + Vector2(-31, -float(enemy.radius) - 27.0), "BLOCKED", Color("f4d98a"))
+	_spawn_burst(ball_position, Color("f0cd78"), 12)
+	screen_flash = maxf(screen_flash, 0.18)
+
+
+func _orc_direct_hit_multiplier(enemy: Dictionary, front_guarded: bool) -> float:
+	if String(enemy.get("kind", "")) != "orc":
+		return 1.0
+	if front_guarded:
+		return 0.0
+	if float(enemy.get("guard_broken_timer", 0.0)) > 0.0:
+		return ORC_GUARD_BREAK_DAMAGE_MULTIPLIER
+	enemy.guard_broken_timer = ORC_GUARD_BREAK_DURATION
+	enemy.pulse = 1.0
+	screen_flash = maxf(screen_flash, 0.24)
+	_show_status("ORC GUARD BROKEN  4.0s", 0.82)
+	_add_floating_text(enemy.pos + Vector2(-42, -float(enemy.radius) - 27.0), "BREAK!  +25%", Color("ffb45b"))
+	_spawn_burst(enemy.pos, Color("e7b85f"), 12)
+	return ORC_GUARD_BREAK_DAMAGE_MULTIPLIER
+
+
+func _damage_enemy(enemy: Dictionary, front_guarded_override: bool = false, use_front_guard_override: bool = false, incoming_impact_speed: float = -1.0) -> void:
+	var orc_front_guarded := front_guarded_override if use_front_guard_override else _orc_front_guard_contact(enemy)
+	if orc_front_guarded:
+		_block_orc_front(enemy)
+		return
+	var orc_direct_multiplier := _orc_direct_hit_multiplier(enemy, orc_front_guarded)
+	var impact_speed := ball_velocity.length() if incoming_impact_speed < 0.0 else incoming_impact_speed
+	var speed_multiplier := _speed_damage_multiplier(impact_speed)
+	var charge_multiplier := CHARGE_STAGE_DAMAGE_MULTIPLIER if charge_stage_active else 1.0
 	var war_cry_empowered := war_cry_ready
 	var heavy_strike_empowered := starting_style_id == "heavy_strike" and heavy_strike_ready
 	# One-shot bonuses add together, so Heavy Strike and War Cry make a readable
@@ -1895,7 +2440,8 @@ func _damage_enemy(enemy: Dictionary) -> void:
 		one_shot_multiplier += HEAVY_STRIKE_DAMAGE_BONUS
 	var size_damage_multiplier := 1.0 + (permanent_size_scale - 1.0) * 0.75
 	var shield_bash_bonus := _shield_bash_bonus()
-	var damage := maxi(1, int(round(9.0 * speed_multiplier * charge_multiplier * one_shot_multiplier * attack_power_multiplier * size_damage_multiplier))) + shield_bash_bonus
+	var raw_direct_damage := 9.0 * speed_multiplier * charge_multiplier * one_shot_multiplier * size_damage_multiplier + float(shield_bash_bonus)
+	var damage := maxi(1, int(round(raw_direct_damage * orc_direct_multiplier)))
 	if war_cry_empowered:
 		war_cry_ready = false
 	if heavy_strike_empowered:
@@ -1909,7 +2455,7 @@ func _damage_enemy(enemy: Dictionary) -> void:
 			_show_status("HEAVY STRIKE!  +40%", 0.72)
 		else:
 			_show_status("WAR CRY STRIKE!  +40%", 0.72)
-	var hit_pitch := 0.84 if String(enemy.kind) == "boss" else 1.0
+	var hit_pitch := 0.84 if String(enemy.kind) == "boss" else (0.90 if String(enemy.kind) == "orc" else 1.0)
 	_play_sfx(SFX_ENEMY_HIT, -2.5, hit_pitch - 0.055, hit_pitch + 0.055)
 	enemy.hp -= damage
 	enemy.hit_cooldown = 0.18
@@ -1935,7 +2481,7 @@ func _damage_enemy(enemy: Dictionary) -> void:
 			_show_status("HEAVY STRIKE READY", 0.86)
 			_add_floating_text(ball_position + Vector2(-46, -34), "HEAVY READY", GOLD)
 	var empowered_hit := war_cry_empowered or heavy_strike_empowered
-	var hit_color := Color("ff9f59") if empowered_hit else (GOLD if charge_timer > 0.0 else Color.WHITE)
+	var hit_color := Color("e6c578") if orc_front_guarded else (Color("ff9f59") if empowered_hit else (GOLD if charge_stage_active else Color.WHITE))
 	_add_floating_text(enemy.pos + Vector2(0, -enemy.radius - 8), "-%d" % damage, hit_color)
 	_spawn_burst(enemy.pos, Color("ff744f") if empowered_hit else (RED if enemy.kind != "boss" else GOLD), 12 if empowered_hit else 7)
 	if shield_bash_bonus > 0:
@@ -2047,6 +2593,8 @@ func _play_enemy_death_sfx(defeated_enemy: Dictionary) -> void:
 
 func _on_enemy_defeated(defeated_enemy: Dictionary) -> void:
 	_play_enemy_death_sfx(defeated_enemy)
+	_grant_enemy_experience(defeated_enemy)
+	_check_objective_completion()
 	if stage_room != FINAL_ROOM or bool(defeated_enemy.get("is_warlord", false)):
 		return
 	var warlord := _living_warlord()
@@ -2101,8 +2649,7 @@ func _on_ball_bounce(origin: Vector2, allow_blast: bool = true) -> void:
 
 func _trigger_blast_impact(origin: Vector2) -> void:
 	blast_impact_cooldown = _impact_proc_cooldown(blast_cooldown_level)
-	var size_damage_multiplier := 1.0 + (permanent_size_scale - 1.0) * 0.75
-	var blast_damage := maxi(2, int(round(5.0 * (1.0 + float(blast_damage_level) * 0.25) * attack_power_multiplier * size_damage_multiplier)))
+	var blast_damage := maxi(2, int(round(5.0 * (1.0 + float(blast_damage_level) * 0.25))))
 	var explosion_radius := _current_explosion_radius()
 	explosions.append({
 		"pos": origin,
@@ -2174,8 +2721,7 @@ func _launch_throwing_axes(origin: Vector2) -> void:
 	if available_targets.is_empty():
 		return
 	throwing_axe_cooldown = _impact_proc_cooldown(axe_cooldown_level)
-	var size_damage_multiplier := 1.0 + (permanent_size_scale - 1.0) * 0.75
-	var axe_damage := maxi(2, int(round(6.0 * (1.0 + float(axe_damage_level) * 0.25) * attack_power_multiplier * size_damage_multiplier)))
+	var axe_damage := maxi(2, int(round(6.0 * (1.0 + float(axe_damage_level) * 0.25))))
 	var axes_to_throw := mini(1 + axe_count_level, available_targets.size())
 	for _axe_index in axes_to_throw:
 		var target_index := 0
@@ -2213,11 +2759,41 @@ func _remove_dead_enemies() -> void:
 
 
 func _speed_damage_multiplier(speed: float) -> float:
-	if speed >= 930.0:
-		return 1.60
-	if speed >= 760.0:
-		return 1.30
-	return 1.0
+	var speed_factor := clampf(speed / IMPACT_REFERENCE_SPEED, IMPACT_MIN_MULTIPLIER, IMPACT_MAX_MULTIPLIER)
+	return speed_factor * impact_coefficient
+
+
+func _experience_to_next_level(level: int = hero_level) -> int:
+	return 35 + maxi(0, level - 1) * 20
+
+
+func _enemy_experience(enemy: Dictionary) -> int:
+	if bool(enemy.get("is_warlord", false)):
+		return 50
+	match String(enemy.kind):
+		"boss":
+			return 20
+		"orc":
+			return 12
+		"soldier":
+			return 8
+		_:
+			return 6
+
+
+func _grant_enemy_experience(enemy: Dictionary) -> void:
+	var gained := _enemy_experience(enemy)
+	hero_xp += gained
+	var levels_gained := 0
+	while hero_xp >= _experience_to_next_level(hero_level):
+		hero_xp -= _experience_to_next_level(hero_level)
+		hero_level += 1
+		pending_level_ups += 1
+		levels_gained += 1
+	_add_floating_text(Vector2(enemy.pos) + Vector2(-22.0, float(enemy.radius) + 30.0), "+%d XP" % gained, CYAN)
+	if levels_gained > 0:
+		screen_flash = maxf(screen_flash, 0.28)
+		_show_status("LEVEL %d  TRAINING READY" % hero_level, 1.2)
 
 
 func _add_energy(amount: float) -> void:
@@ -2229,7 +2805,7 @@ func _add_energy(amount: float) -> void:
 
 
 func _gain_shield(base_amount: int, gain_cap: int = SHIELD_MAX) -> int:
-	var scaled_gain := float(base_amount) * (1.0 + float(shield_training_level) * 0.25) + shield_gain_fraction
+	var scaled_gain := float(base_amount) * (1.0 + float(shield_training_level) * 0.10) + shield_gain_fraction
 	var whole_gain := int(floor(scaled_gain))
 	shield_gain_fraction = scaled_gain - float(whole_gain)
 	var actual_gain := mini(whole_gain, mini(gain_cap, SHIELD_MAX - shield))
@@ -2241,14 +2817,18 @@ func _activate_skill(id: String, pos: Vector2, color: Color) -> void:
 	if id == "guard" and shield >= SHIELD_MAX:
 		_show_status("SHIELD ALREADY FULL", 0.8)
 		return
+	if id == "charge" and charge_stage_active:
+		_show_status("CHARGE ALREADY ACTIVE", 0.8)
+		return
 	energy = 0.0
 	screen_flash = 0.42
 	if id == "charge":
-		charge_timer = 3.0
+		charge_stage_active = true
+		charge_fx_timer = 0.85
+		dash_fx_timer = maxf(dash_fx_timer, 0.52)
 		if ball_velocity.length() > 0.1:
-			var charge_floor := CHARGE_MIN_SPEED * (1.0 + speed_upgrade_bonus * 0.65)
-			ball_velocity = ball_velocity.normalized() * minf(_current_max_speed(), maxf(charge_floor, ball_velocity.length() * 1.30))
-		_show_status("CHARGE!  3.0s", 1.0)
+			ball_velocity = ball_velocity.normalized() * minf(_current_max_speed(), ball_velocity.length() * CHARGE_ACTIVATION_SPEED_MULTIPLIER)
+		_show_status("CHARGE AWAKENED  THIS STAGE", 1.2)
 		_play_sfx(SFX_CHARGE, -4.5, 0.98, 1.04)
 	else:
 		var guard_gain := _gain_shield(GUARD_SHIELD_GAIN)
@@ -2293,7 +2873,6 @@ func _ball_drained() -> void:
 	waiting_for_launch = false
 	trail.clear()
 	combo = 0
-	charge_timer = 0.0
 	might_timer = 0.0
 	war_cry_ready = false
 	explosions.clear()
@@ -2305,13 +2884,40 @@ func _ball_drained() -> void:
 		_start_enemy_phase()
 
 
+func _trigger_side_trap(contact_position: Vector2) -> void:
+	if not ball_active or enemy_phase_active or game_over:
+		return
+	ball_active = false
+	waiting_for_launch = false
+	combo = 0
+	combo_timer = 0.0
+	explosions.clear()
+	pending_aftershocks.clear()
+	flying_axes.clear()
+	# Spike pits bypass Shield and do not grant the surviving enemies a full turn.
+	# Their role is to keep the outlanes dangerous without making one miss fatal.
+	hero_hp = maxi(0, hero_hp - SIDE_TRAP_DAMAGE)
+	_play_sfx(SFX_HERO_HIT, -2.0, 1.02, 1.08)
+	_spawn_burst(contact_position, RED, 16)
+	_add_floating_text(contact_position + Vector2(-38.0, -24.0), "TRAP  -%d HP" % SIDE_TRAP_DAMAGE, RED)
+	screen_shake_strength = maxf(screen_shake_strength, 8.0)
+	screen_shake_timer = maxf(screen_shake_timer, 0.24)
+	damage_vignette = maxf(damage_vignette, 0.78)
+	if hero_hp <= 0:
+		game_over = true
+		waiting_for_launch = false
+		_show_status("THE HERO HAS FALLEN", 99.0)
+	else:
+		prepare_ball()
+		_show_status("SPIKE TRAP  -%d HP" % SIDE_TRAP_DAMAGE, 1.0)
+
+
 func _begin_wave_clear() -> void:
 	if wave_clear_timer >= 0.0:
 		return
 	ball_active = false
 	waiting_for_launch = false
 	trail.clear()
-	charge_timer = 0.0
 	might_timer = 0.0
 	war_cry_ready = false
 	wave_clear_timer = 1.35
@@ -2322,9 +2928,18 @@ func _finish_room_clear() -> void:
 	var hp_before_rest := hero_hp
 	hero_hp = mini(HERO_MAX_HP, hero_hp + ROOM_CLEAR_HEAL)
 	last_room_heal = hero_hp - hp_before_rest
+	room_clear_resolution_pending = true
+	if pending_level_ups > 0:
+		_show_level_up_selection()
+	else:
+		_continue_room_clear_resolution()
+
+
+func _continue_room_clear_resolution() -> void:
 	if stage_room < FINAL_ROOM:
 		_show_upgrade_selection()
 	else:
+		room_clear_resolution_pending = false
 		run_complete = true
 		waiting_for_launch = false
 		ball_active = false
@@ -2414,18 +3029,13 @@ func _select_starting_style(index: int) -> void:
 func _show_upgrade_selection() -> void:
 	upgrade_choices.clear()
 	var available: Array[Dictionary] = []
-	var source_pool: Array = []
+	var source_pool: Array = COMBAT_ART_UPGRADE_POOL.duplicate()
+	upgrade_reward_kind = "EQUIPMENT"
 	if stage_room == 1:
-		upgrade_reward_kind = "ART_UNLOCK"
 		source_pool = COMBAT_ART_UNLOCK_POOL
-	elif stage_room == 3:
-		upgrade_reward_kind = "TRAINING"
-		source_pool = TRAINING_POOL
 	else:
-		upgrade_reward_kind = "ART_UPGRADE"
-		source_pool = COMBAT_ART_UPGRADE_POOL.duplicate()
-		# Later combat-art rewards may deepen an owned art or unlock another one.
-		# This keeps every mechanism obtainable without ever mixing in stat cards.
+		# Later treasure can reveal a missing equipment slot or forge anything
+		# already owned. Character stats live exclusively in level-up training.
 		for unlock_definition in COMBAT_ART_UNLOCK_POOL:
 			source_pool.append(unlock_definition)
 	for definition in source_pool:
@@ -2436,13 +3046,24 @@ func _show_upgrade_selection() -> void:
 		var current_level := int(upgrade_levels.get(id, 0))
 		if current_level < int(definition.max_level):
 			available.append(definition.duplicate(true))
-	# A defensive fallback keeps a malformed/debug run from opening an empty
-	# reward screen, without mixing categories during the normal five rooms.
-	if available.is_empty() and upgrade_reward_kind == "ART_UPGRADE":
-		upgrade_reward_kind = "ART_UNLOCK"
+	if available.is_empty():
 		for definition in COMBAT_ART_UNLOCK_POOL:
 			if int(upgrade_levels.get(String(definition.id), 0)) < int(definition.max_level):
 				available.append(definition.duplicate(true))
+	_open_upgrade_selection(available)
+
+
+func _show_level_up_selection() -> void:
+	upgrade_reward_kind = "LEVEL_UP"
+	var available: Array[Dictionary] = []
+	for definition in TRAINING_POOL:
+		if int(upgrade_levels.get(String(definition.id), 0)) < int(definition.max_level):
+			available.append(definition.duplicate(true))
+	_open_upgrade_selection(available)
+
+
+func _open_upgrade_selection(available: Array[Dictionary]) -> void:
+	upgrade_choices.clear()
 	available.shuffle()
 	for index in mini(3, available.size()):
 		upgrade_choices.append(available[index])
@@ -2482,8 +3103,32 @@ func _select_upgrade(index: int) -> void:
 	var choice := upgrade_choices[index]
 	_apply_upgrade(choice)
 	upgrade_history.append(String(choice.name))
+	if upgrade_reward_kind == "LEVEL_UP":
+		pending_level_ups = maxi(0, pending_level_ups - 1)
 	screen_flash = maxf(screen_flash, 0.55)
 	_play_sfx(SFX_MIGHT, -5.0, 1.04, 1.10)
+
+
+func _complete_upgrade_selection() -> void:
+	var completed_kind := upgrade_reward_kind
+	upgrade_selection_active = false
+	upgrade_selection_timer = 0.0
+	upgrade_exit_timer = -1.0
+	upgrade_selected_index = -1
+	upgrade_hover_index = -1
+	upgrade_choices.clear()
+	upgrade_reward_kind = ""
+	if completed_kind == "LEVEL_UP":
+		if pending_level_ups > 0:
+			_show_level_up_selection()
+		elif room_clear_resolution_pending:
+			_continue_room_clear_resolution()
+		else:
+			prepare_ball()
+			_show_status("TRAINING COMPLETE  YOUR TURN", 1.0)
+	else:
+		room_clear_resolution_pending = false
+		_advance_to_next_room()
 
 
 func _apply_upgrade(upgrade: Dictionary) -> void:
@@ -2492,11 +3137,11 @@ func _apply_upgrade(upgrade: Dictionary) -> void:
 	upgrade_levels[id] = new_level
 	match id:
 		"sharpened_blade":
-			attack_power_multiplier = 1.0 + float(new_level) * 0.25
+			impact_coefficient = 1.0 + float(new_level) * 0.10
 		"windrunner_boots":
-			speed_upgrade_bonus += 0.08
+			speed_upgrade_bonus = float(new_level) * 0.04
 		"giants_belt":
-			permanent_size_scale += 0.10
+			permanent_size_scale = 1.0 + float(new_level) * 0.05
 		"spring_plate":
 			spring_plate_level = new_level
 		"blast_impact":
@@ -2547,8 +3192,12 @@ func _advance_to_next_room() -> void:
 	upgrade_selected_index = -1
 	upgrade_hover_index = -1
 	upgrade_choices.clear()
+	upgrade_reward_kind = ""
+	room_clear_resolution_pending = false
 	stage_room += 1
 	wave = stage_room
+	charge_stage_active = false
+	charge_fx_timer = 0.0
 	energy = minf(ENERGY_MAX, energy + 30.0)
 	particles.clear()
 	floating_text.clear()
@@ -2659,7 +3308,7 @@ func _resolve_enemy_attack(attack: Dictionary) -> void:
 	if shieldbreak_retort_level > 0 and not shieldbreak_triggered_this_phase and shield_before_hit > 0 and shield <= 0:
 		shieldbreak_triggered_this_phase = true
 		triggered_retort = true
-		var retort_damage := maxi(1, int(round(3.0 * (1.0 + float(spike_damage_level) * 0.25) * attack_power_multiplier)))
+		var retort_damage := maxi(1, int(round(3.0 * (1.0 + float(spike_damage_level) * 0.25))))
 		for retort_target in enemies:
 			if not retort_target.dead:
 				_deal_secondary_damage(retort_target, retort_damage, Color("b9efa7"), "RETORT")
@@ -2683,6 +3332,8 @@ func _attack_effect_for_kind(kind: String) -> String:
 			return "grunt_lunge"
 		"mage":
 			return "mage_cast"
+		"orc":
+			return "orc_smash"
 		_:
 			return "grunt_lunge"
 
@@ -2697,6 +3348,8 @@ func _attack_effect_profile(effect_id: String) -> Dictionary:
 			return {"duration": 0.30, "local_strength": 10.0, "screen_strength": 6.0, "vignette": 0.72, "particle_color": Color("e98555"), "particles": 7}
 		"mage_cast":
 			return {"duration": 0.36, "local_strength": 9.0, "screen_strength": 6.0, "vignette": 0.76, "particle_color": ARCANE, "particles": 11}
+		"orc_smash":
+			return {"duration": 0.34, "local_strength": 16.0, "screen_strength": 9.0, "vignette": 0.84, "particle_color": Color("d29a4a"), "particles": 10}
 		"grunt_lunge":
 			return {"duration": 0.28, "local_strength": 13.0, "screen_strength": 7.0, "vignette": 0.78, "particle_color": RED, "particles": 8}
 		_:
@@ -2736,6 +3389,8 @@ func _finish_enemy_phase() -> void:
 		game_over = true
 		waiting_for_launch = false
 		_show_status("THE HERO HAS FALLEN", 99.0)
+	elif pending_level_ups > 0:
+		_show_level_up_selection()
 	else:
 		prepare_ball()
 		_show_status("YOUR TURN", 0.9)
@@ -2954,10 +3609,11 @@ func _draw_side_panels() -> void:
 	_text(Vector2(164, 694), "FILL ENERGY", 13, MUTED)
 	_draw_keycap(Vector2(52, 711), "K", 88.0, Color("e66f4f"))
 	_text(Vector2(164, 728), "CLEAR STAGE", 13, MUTED)
-	_text(Vector2(52, 765), "F fills Fury; K clears the", 11, MUTED)
-	_text(Vector2(52, 783), "current stage for testing.", 11, MUTED)
-	_text(Vector2(52, 821), "DMG x%.2f   SIZE x%.2f" % [attack_power_multiplier, permanent_size_scale], 11, Color(PARCHMENT, 0.78))
-	_text(Vector2(52, 841), "FLIPPER POWER +%d%%" % int(round(speed_upgrade_bonus * 100.0)), 11, Color(PARCHMENT, 0.78))
+	_draw_section_title(Vector2(52, 772), "WARRIOR TRAINING", 228.0)
+	_text(Vector2(52, 811), "LEVEL %d" % hero_level, 14, Color("fff1c8"))
+	_text(Vector2(190, 811), "XP %d / %d" % [hero_xp, _experience_to_next_level()], 11, CYAN)
+	_draw_resource_bar(Rect2(52, 820, 236, 12), float(hero_xp) / float(_experience_to_next_level()), CYAN)
+	_text(Vector2(52, 854), "IMPACT x%.2f  SPEED +%d%%  SIZE x%.2f" % [impact_coefficient, int(round(speed_upgrade_bonus * 100.0)), permanent_size_scale], 10, Color(PARCHMENT, 0.78))
 
 	_draw_banner(Rect2(1142, 42, 256, 74), "ADVENTURE", "STAGE  1-%d" % stage_room)
 	_draw_section_title(Vector2(1152, 147), "GOBLIN WAR BAND", 228.0)
@@ -2965,8 +3621,11 @@ func _draw_side_panels() -> void:
 	_text(Vector2(1253, 198), "1-%d" % stage_room, 28, Color("fff1c8"))
 	_text(Vector2(1152, 247), "SCORE", 13, MUTED)
 	_text(Vector2(1152, 280), "%07d" % score, 25, GOLD)
-	_text(Vector2(1152, 326), "COMBO", 13, MUTED)
-	_text(Vector2(1152, 361), "x%d" % combo, 29, CYAN if combo > 1 else Color("fff1c8"))
+	_text(Vector2(1300, 247), "COMBO", 11, MUTED)
+	_text(Vector2(1300, 280), "x%d" % combo, 20, CYAN if combo > 1 else Color("fff1c8"))
+	_draw_section_title(Vector2(1152, 320), "ROOM OBJECTIVE", 228.0)
+	_text(Vector2(1152, 355), objective_title, 11, Color("fff1c8"))
+	_text(Vector2(1152, 380), "EXIT OPEN  •  TOP GATE" if exit_open else "EXIT LOCKED", 11, GOLD if exit_open else MUTED)
 
 	_draw_section_title(Vector2(1152, 410), "HERO MOMENTUM", 228.0)
 	var speed := ball_velocity.length() if ball_active else 0.0
@@ -2997,78 +3656,39 @@ func _draw_side_panels() -> void:
 		_text(Vector2(1152, boon_y), "WAR CRY   NEXT HIT +40%", 11, Color("ff8a61"))
 		boon_y += 18.0
 		boon_count += 1
-	if charge_timer > 0.0:
-		_text(Vector2(1152, boon_y), "CHARGE   %.1fs" % charge_timer, 11, GOLD)
+	if charge_stage_active:
+		_text(Vector2(1152, boon_y), "CHARGE  +12% SPD  +20% DMG  R+.04", 10, GOLD)
 		boon_y += 18.0
 		boon_count += 1
 	if spring_rebound_ready:
 		_text(Vector2(1152, boon_y), "SPRING   REBOUND ARMED", 11, Color("a9d8c8"))
 		boon_y += 18.0
 		boon_count += 1
-	if blast_impact_level > 0:
-		var blast_label := "READY" if blast_impact_cooldown <= 0.0 else "%.1fs" % blast_impact_cooldown
-		var blast_name := "BLAST+ECHO" if moving_aftershock_level > 0 else "BLAST"
-		_text(Vector2(1152, boon_y), "%s +%d%% R%d  %s" % [blast_name, blast_damage_level * 25, int(_current_explosion_radius()), blast_label], 10, Color("f18b45") if blast_impact_cooldown <= 0.0 else MUTED)
-		boon_y += 18.0
-		boon_count += 1
-	if throwing_axe_level > 0:
-		var axe_label := "READY" if throwing_axe_cooldown <= 0.0 else "%.1fs" % throwing_axe_cooldown
-		var axe_name := "RETURN AXE" if returning_axe_level > 0 else "AXE"
-		_text(Vector2(1152, boon_y), "%s x%d +%d%%  %s" % [axe_name, 1 + axe_count_level, axe_damage_level * 25, axe_label], 10, Color("d6b679") if throwing_axe_cooldown <= 0.0 else MUTED)
-		boon_y += 18.0
-		boon_count += 1
-	if spiked_shield_level > 0:
-		var thorn_ratio := int(round(50.0 * (1.0 + float(spike_damage_level) * 0.25)))
-		var bash_label := "  BASH +%d" % _shield_bash_bonus() if shield_bash_level > 0 else ""
-		_text(Vector2(1152, boon_y), "THORNS %d%%  S+%d%s" % [thorn_ratio, spike_scatter_level, bash_label], 10, GREEN)
-		boon_y += 18.0
-		boon_count += 1
-	if shield_training_level > 0:
-		_text(Vector2(1152, boon_y), "SHIELD GAIN  +%d%%" % (shield_training_level * 25), 10, GREEN)
-		boon_y += 18.0
-		boon_count += 1
-	if residual_shield_level > 0:
-		var retention_percent := mini(100, 25 + (residual_shield_level - 1) * 10)
-		_text(Vector2(1152, boon_y), "SHIELD RETAIN  %d%%" % retention_percent, 10, Color("9cc7bd"))
-		boon_count += 1
 	if boon_count == 0:
 		_text(Vector2(1152, boon_y), "NO ACTIVE BOONS", 11, MUTED)
 
-	_draw_section_title(Vector2(1152, 690), "RUN UPGRADES", 228.0)
-	if upgrade_history.is_empty():
-		_text(Vector2(1152, 735), "NO BATTLE SPOILS YET", 11, MUTED)
-		_text(Vector2(1152, 760), "Clear 1-1 to choose one.", 11, Color(PARCHMENT, 0.72))
-	else:
-		var history_y := 735.0
-		for history_index in range(maxi(0, upgrade_history.size() - 4), upgrade_history.size()):
-			var acquired_name := upgrade_history[history_index]
-			_text(Vector2(1152, history_y), "•  %s" % acquired_name, 11, Color("fff1c8"))
-			history_y += 22.0
+	_draw_section_title(Vector2(1152, 690), "EQUIPMENT", 228.0)
+	var axe_slot_text := "HATCHET x%d  %s" % [1 + axe_count_level, "READY" if throwing_axe_cooldown <= 0.0 else "%.1fs" % throwing_axe_cooldown]
+	var thorn_ratio := int(round(50.0 * (1.0 + float(spike_damage_level) * 0.25)))
+	var armor_slot_text := "SPIKED PLATE  %d%%" % thorn_ratio
+	var blast_slot_text := "BLAST RUNE  %s" % ("READY" if blast_impact_cooldown <= 0.0 else "%.1fs" % blast_impact_cooldown)
+	_draw_equipment_slot(Vector2(1152, 729), "WEAPON", axe_slot_text, throwing_axe_level > 0, Color("d6b679"))
+	_draw_equipment_slot(Vector2(1152, 765), "ARMOR", armor_slot_text, spiked_shield_level > 0, GREEN)
+	_draw_equipment_slot(Vector2(1152, 801), "RELIC", blast_slot_text, blast_impact_level > 0, Color("f18b45"))
+
+
+func _draw_equipment_slot(pos: Vector2, slot_name: String, item_name: String, equipped: bool, color: Color) -> void:
+	draw_rect(Rect2(pos, Vector2(228.0, 27.0)), Color("17130f", 0.76), true)
+	draw_rect(Rect2(pos, Vector2(228.0, 27.0)), Color(color, 0.42 if equipped else 0.15), false, 1.5)
+	_text(pos + Vector2(8.0, 18.0), slot_name, 9, Color(color, 0.92 if equipped else 0.42))
+	_text(pos + Vector2(67.0, 18.0), item_name if equipped else "EMPTY", 10, Color("fff1c8") if equipped else MUTED)
 
 
 func _draw_playfield() -> void:
 	var field_rect := Rect2(FIELD_LEFT, FIELD_TOP, FIELD_RIGHT - FIELD_LEFT, FIELD_BOTTOM - FIELD_TOP)
 	draw_rect(field_rect.grow(10), WOOD_DARK, true)
 	draw_rect(field_rect.grow(6), BRONZE, false, 4.0)
-	draw_rect(field_rect, FIELD_BG, true)
-	# Uneven dungeon flagstones, intentionally decorative only.
-	for row in range(12):
-		var stone_y := FIELD_TOP + float(row) * 72.0
-		var row_shift := 54.0 if row % 2 == 0 else 0.0
-		for column in range(7):
-			var stone_x := FIELD_LEFT - row_shift + float(column) * 108.0
-			# Clamp every decorative tile to the inner playfield. The staggered
-			# negative first column previously leaked over the left cabinet edge.
-			var stone_left := maxf(FIELD_LEFT + 3.0, stone_x + 3.0)
-			var stone_right := minf(FIELD_RIGHT - 3.0, stone_x + 105.0)
-			var stone_top := maxf(FIELD_TOP + 3.0, stone_y + 3.0)
-			var stone_bottom := minf(FIELD_BOTTOM - 3.0, stone_y + 69.0)
-			if stone_right <= stone_left or stone_bottom <= stone_top:
-				continue
-			var stone_rect := Rect2(stone_left, stone_top, stone_right - stone_left, stone_bottom - stone_top)
-			var tint := Color("1c2c27") if (row + column) % 3 == 0 else Color("1a2925")
-			draw_rect(stone_rect, tint, true)
-			draw_line(stone_rect.position, stone_rect.position + Vector2(stone_rect.size.x, 0), Color("304038"), 1.0)
+	_draw_dungeon_floor(field_rect)
 
 	# Small wall banners frame the goblin captain at the top of the table.
 	_draw_table_banner(Vector2(420, 76), Color("6f2723"))
@@ -3084,7 +3704,87 @@ func _draw_playfield() -> void:
 	_text(Vector2(676, 879), "THE ABYSS", 12, Color(RED, 0.78))
 
 
+func _draw_dungeon_floor(field_rect: Rect2) -> void:
+	# Decorative only: uneven cold flagstones, damp stains and cracks establish a
+	# dungeon floor while all rails, flippers and collision shapes remain intact.
+	draw_rect(field_rect, Color("101413"), true)
+	var stone_palette := [Color("202322"), Color("242725"), Color("1c211f"), Color("292a27")]
+	for row in range(12):
+		var stone_y := FIELD_TOP + float(row) * 72.0
+		var row_shift := 54.0 if row % 2 == 0 else 0.0
+		for column in range(8):
+			var stone_x := FIELD_LEFT - row_shift + float(column) * 108.0
+			var seed := row * 37 + column * 19
+			var left_jitter := float(seed % 4)
+			var right_jitter := float((seed / 3) % 5)
+			var top_jitter := float((seed / 7) % 4)
+			var bottom_jitter := float((seed / 11) % 4)
+			# Clamp all irregular stones to the playfield so decoration cannot leak
+			# across the wooden cabinet frame.
+			var stone_left := maxf(FIELD_LEFT + 3.0, stone_x + 3.0 + left_jitter)
+			var stone_right := minf(FIELD_RIGHT - 3.0, stone_x + 105.0 - right_jitter)
+			var stone_top := maxf(FIELD_TOP + 3.0, stone_y + 3.0 + top_jitter)
+			var stone_bottom := minf(FIELD_BOTTOM - 3.0, stone_y + 69.0 - bottom_jitter)
+			if stone_right <= stone_left or stone_bottom <= stone_top:
+				continue
+			var bevel := 2.0 + float(seed % 3)
+			var stone_points := PackedVector2Array([
+				Vector2(stone_left + bevel, stone_top),
+				Vector2(stone_right - bevel * 0.6, stone_top + float(seed % 2)),
+				Vector2(stone_right, stone_bottom - bevel),
+				Vector2(stone_left + bevel * 0.4, stone_bottom),
+				Vector2(stone_left, stone_top + bevel),
+			])
+			var tint: Color = stone_palette[seed % stone_palette.size()]
+			draw_colored_polygon(stone_points, tint)
+			draw_line(stone_points[0], stone_points[1], Color("41413b", 0.62), 1.2, true)
+			draw_line(stone_points[2], stone_points[3], Color("080b0a", 0.72), 1.5, true)
+			if seed % 5 == 0:
+				var scar_start := Vector2(lerpf(stone_left, stone_right, 0.34), lerpf(stone_top, stone_bottom, 0.30))
+				var scar_mid := scar_start + Vector2(9.0, 7.0)
+				var scar_end := scar_mid + Vector2(-4.0, 10.0)
+				draw_line(scar_start, scar_mid, Color("090c0b", 0.72), 1.5, true)
+				draw_line(scar_mid, scar_end, Color("090c0b", 0.72), 1.5, true)
+
+	# Irregular damp patches stay low-contrast so enemies and runes remain clear.
+	var damp_patches := [
+		PackedVector2Array([Vector2(348, 312), Vector2(399, 286), Vector2(448, 305), Vector2(430, 345), Vector2(370, 352)]),
+		PackedVector2Array([Vector2(930, 584), Vector2(1000, 570), Vector2(1084, 608), Vector2(1060, 650), Vector2(972, 642)]),
+		PackedVector2Array([Vector2(582, 742), Vector2(646, 724), Vector2(706, 750), Vector2(682, 790), Vector2(612, 784)]),
+	]
+	for patch in damp_patches:
+		draw_colored_polygon(patch, Color("10201d", 0.42))
+		draw_polyline(patch, Color("34463b", 0.20), 1.0, true)
+
+	# Sparse moss follows the cabinet edges rather than filling playable lanes.
+	for moss_pos in [Vector2(350, 188), Vector2(362, 198), Vector2(1084, 248), Vector2(1072, 258), Vector2(383, 704), Vector2(1052, 742)]:
+		draw_circle(moss_pos, 3.5, Color("53603b", 0.34))
+		draw_circle(moss_pos + Vector2(4.0, 2.0), 2.0, Color("70804c", 0.20))
+
+	_draw_floor_crack(Vector2(506, 470), -0.25)
+	_draw_floor_crack(Vector2(875, 298), 0.42)
+	_draw_floor_crack(Vector2(820, 690), -0.72)
+	# A restrained inner vignette makes the table feel recessed into the dungeon.
+	for band in range(5):
+		var inset := 4.0 + float(band) * 5.0
+		draw_rect(field_rect.grow(-inset), Color("050706", 0.22 - float(band) * 0.035), false, 4.0)
+
+
+func _draw_floor_crack(origin: Vector2, angle: float) -> void:
+	var main_points := PackedVector2Array([
+		origin + Vector2(-20, -12).rotated(angle),
+		origin + Vector2(-8, -4).rotated(angle),
+		origin + Vector2(-12, 7).rotated(angle),
+		origin + Vector2(2, 14).rotated(angle),
+		origin + Vector2(8, 29).rotated(angle),
+	])
+	draw_polyline(main_points, Color("080a09", 0.78), 2.0, true)
+	draw_line(main_points[1], main_points[1] + Vector2(13, -7).rotated(angle), Color("080a09", 0.64), 1.4, true)
+	draw_line(main_points[3], main_points[3] + Vector2(-13, 7).rotated(angle), Color("080a09", 0.58), 1.2, true)
+
+
 func _draw_table_objects() -> void:
+	_draw_exit_gate()
 	for wall in walls:
 		# Bronze-bound oak rails replace the former neon machine parts.
 		draw_line(wall.a, wall.b, Color("0d0907a8"), 27.0, true)
@@ -3118,11 +3818,12 @@ func _draw_table_objects() -> void:
 				_draw_war_cry_glyph(bumper.pos, rune_color)
 			_:
 				_draw_rune_mark(bumper.pos, 0.0, 0.82, Color("d8f8f5"))
-		var rune_label_color: Color = rune_color if bumper.implemented else Color(MUTED, 0.78)
-		_text_center(bumper.pos + Vector2(-55, visual_radius + 18), 110.0, bumper.name, 10, rune_label_color)
+		_draw_cooldown_clock(bumper.pos, core_radius * pulse_scale, float(bumper.cooldown), float(bumper.activation_cooldown))
 
 	for deflector in diamond_deflectors:
 		_draw_diamond_deflector(deflector)
+	for rotor in mechanism_rotors:
+		_draw_mechanism_rotor(rotor)
 
 	for wave_fx in shockwaves:
 		var progress: float = 1.0 - wave_fx.life / wave_fx.max_life
@@ -3143,6 +3844,7 @@ func _draw_table_objects() -> void:
 	for axe in flying_axes:
 		_draw_flying_axe(axe)
 
+	_draw_side_traps()
 	_draw_flippers()
 
 	for particle in particles:
@@ -3150,6 +3852,42 @@ func _draw_table_objects() -> void:
 		draw_circle(particle.pos, 3.5 * alpha + 1.0, Color(particle.color, alpha))
 	for item in floating_text:
 		_text(item.pos, item.text, 16, Color(item.color, clampf(item.life / 0.72, 0.0, 1.0)))
+
+
+func _draw_side_traps() -> void:
+	for trap in _side_trap_segments():
+		var start: Vector2 = trap.a
+		var finish: Vector2 = trap.b
+		# Place one unsquashed upright sprite per tooth. The bases follow the sloped
+		# trap sensor, but the images themselves are never rotated or flipped.
+		for spike_index in range(3):
+			var base_center := start.lerp(finish, (float(spike_index) + 0.5) / 3.0)
+			var spike_size := Vector2(26.0, 44.0)
+			var spike_rect := Rect2(base_center + Vector2(-spike_size.x * 0.5, -spike_size.y), spike_size)
+			draw_texture_rect(SIDE_SPIKE_TEXTURE, spike_rect, false, Color("c7ced6"))
+
+
+func _draw_exit_gate() -> void:
+	var pulse := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.008)
+	var opening := Rect2(EXIT_GATE_LEFT + 5.0, FIELD_TOP - 2.0, EXIT_GATE_RIGHT - EXIT_GATE_LEFT - 10.0, 38.0)
+	draw_rect(opening, Color("050706"), true)
+	if exit_open:
+		for glow_index in range(4, 0, -1):
+			draw_rect(opening.grow(float(glow_index) * 3.0), Color(GOLD, 0.015 + pulse * 0.008), false, 3.0)
+		draw_rect(Rect2(opening.position + Vector2(12.0, 8.0), opening.size - Vector2(24.0, 18.0)), Color("172019"), true)
+		draw_line(Vector2(EXIT_GATE_LEFT + 12.0, 65.0), Vector2(EXIT_GATE_RIGHT - 12.0, 65.0), Color(GOLD, 0.55 + pulse * 0.28), 3.0, true)
+	else:
+		draw_rect(opening, Color("201712"), true)
+		for bar_x in range(int(EXIT_GATE_LEFT + 17.0), int(EXIT_GATE_RIGHT - 8.0), 22):
+			draw_line(Vector2(float(bar_x), 35.0), Vector2(float(bar_x), 66.0), Color("17100c"), 8.0, true)
+			draw_line(Vector2(float(bar_x), 35.0), Vector2(float(bar_x), 66.0), BRONZE, 3.5, true)
+		draw_line(Vector2(EXIT_GATE_LEFT + 7.0, 54.0), Vector2(EXIT_GATE_RIGHT - 7.0, 54.0), BRONZE, 5.0, true)
+	# A compact stone lintel keeps the exit visually separate from the wooden
+	# cabinet while leaving the 150px mouth readable at pinball speed.
+	draw_line(Vector2(EXIT_GATE_LEFT, 75.0), Vector2(EXIT_GATE_LEFT, 38.0), Color("171a18"), 20.0, true)
+	draw_line(Vector2(EXIT_GATE_RIGHT, 75.0), Vector2(EXIT_GATE_RIGHT, 38.0), Color("171a18"), 20.0, true)
+	draw_line(Vector2(EXIT_GATE_LEFT, 75.0), Vector2(EXIT_GATE_LEFT, 38.0), STONE, 12.0, true)
+	draw_line(Vector2(EXIT_GATE_RIGHT, 75.0), Vector2(EXIT_GATE_RIGHT, 38.0), STONE, 12.0, true)
 
 
 func _draw_warlord_soul_stream(soul_stream: Dictionary) -> void:
@@ -3239,6 +3977,26 @@ func _draw_diamond_deflector(deflector: Dictionary) -> void:
 	draw_colored_polygon(core, Color("705238"))
 	if pulse > 0.0:
 		draw_polyline(closed_points, Color(GOLD, pulse * 0.72), 5.0, true)
+
+
+func _draw_mechanism_rotor(rotor: Dictionary) -> void:
+	var center: Vector2 = rotor.pos
+	var segment := _mechanism_rotor_segment(rotor)
+	var pulse := float(rotor.pulse)
+	var sweep_radius := float(rotor.half_length)
+	draw_circle(center, sweep_radius, Color("d08a42", 0.035))
+	draw_arc(center, sweep_radius, 0.0, TAU, 64, Color(BRONZE, 0.30), 2.0, true)
+	# A stationary speed response keeps the mechanism focused on direction rather
+	# than becoming another source of runaway acceleration.
+	draw_line(segment.a, segment.b, Color("0d0907c8"), float(rotor.thickness) + 10.0, true)
+	draw_line(segment.a, segment.b, BRONZE.lightened(pulse * 0.18), float(rotor.thickness), true)
+	draw_line(segment.a, segment.b, WOOD.lightened(pulse * 0.12), float(rotor.thickness) - 8.0, true)
+	draw_line(segment.a + Vector2(0.0, -3.0), segment.b + Vector2(0.0, -3.0), Color("d4a35b"), 2.5, true)
+	draw_circle(center, 19.0 + pulse * 2.0, Color("17100c"))
+	draw_circle(center, 14.0 + pulse * 2.0, Color("c4924d"))
+	draw_arc(center, 14.0 + pulse * 2.0, 0.0, TAU, 24, Color("f0cf83"), 2.0, true)
+	for bolt_angle in [0.0, PI * 0.5, PI, PI * 1.5]:
+		draw_circle(center + Vector2.from_angle(bolt_angle) * 8.0, 2.0, Color("4a2f20"))
 
 
 func _draw_explosion(explosion: Dictionary) -> void:
@@ -3360,8 +4118,11 @@ func _draw_goblin_gate() -> void:
 
 func _draw_skill_panel(panel: Dictionary) -> void:
 	var energy_ready: bool = energy >= ENERGY_MAX - 0.01
-	var ready: bool = energy_ready and not (panel.id == "guard" and shield >= SHIELD_MAX)
+	var charge_active: bool = panel.id == "charge" and charge_stage_active
+	var blocked: bool = (panel.id == "guard" and shield >= SHIELD_MAX) or charge_active
+	var ready: bool = energy_ready and not blocked
 	var color: Color = panel.color
+	var glyph_color := color if ready or charge_active else Color("5b5d54")
 	var pulse: float = panel.pulse
 	if ready:
 		var breathe := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.008)
@@ -3371,14 +4132,29 @@ func _draw_skill_panel(panel: Dictionary) -> void:
 	draw_circle(panel.pos, panel.radius * 0.96, Color("26302c9c"))
 	draw_arc(panel.pos, panel.radius * 0.82, 0, TAU, 40, color if ready else Color(MUTED, 0.42), 3.0, true)
 	if panel.id == "guard":
-		_draw_shield(panel.pos + Vector2(0, -2), 0.88, color if ready else Color("5b5d54"))
+		_draw_shield(panel.pos + Vector2(0, -2), 0.88, glyph_color)
 	else:
-		_draw_charge_glyph(panel.pos, color if ready else Color("5b5d54"))
-	_text(panel.pos + Vector2(-31 if panel.id == "guard" else -39, 56), panel.name, 12, color if ready else MUTED)
-	if ready:
-		_text(panel.pos + Vector2(-20, 73), "READY", 10, Color("fff4d6"))
-	elif energy_ready and panel.id == "guard":
-		_text(panel.pos + Vector2(-15, 73), "FULL", 10, GREEN)
+		_draw_charge_glyph(panel.pos, glyph_color)
+	_draw_cooldown_clock(panel.pos, panel.radius * 0.96, float(panel.cooldown), 0.42)
+
+
+func _draw_cooldown_clock(center: Vector2, radius: float, remaining: float, duration: float) -> void:
+	if remaining <= 0.0 or duration <= 0.0:
+		return
+	var remaining_ratio := clampf(remaining / duration, 0.0, 1.0)
+	var elapsed_ratio := 1.0 - remaining_ratio
+	var hand_angle := -PI * 0.5 + TAU * elapsed_ratio
+	var sweep := TAU * remaining_ratio
+	var segments := maxi(4, int(ceil(40.0 * remaining_ratio)))
+	var shade_points := PackedVector2Array([center])
+	for point_index in range(segments + 1):
+		var angle := hand_angle + sweep * float(point_index) / float(segments)
+		shade_points.append(center + Vector2.from_angle(angle) * radius)
+	draw_colored_polygon(shade_points, Color("070908", 0.72))
+	draw_arc(center, radius, 0.0, TAU, 36, Color("0a0b0a", 0.88), 2.0, true)
+	var hand_end := center + Vector2.from_angle(hand_angle) * radius * 0.78
+	draw_line(center, hand_end, Color("e6d3a2", 0.92), 2.2, true)
+	draw_circle(center, 3.2, Color("e6d3a2"))
 
 
 func _enemy_attack_draw_offset(enemy: Dictionary) -> Vector2:
@@ -3399,10 +4175,19 @@ func _enemy_attack_draw_offset(enemy: Dictionary) -> Vector2:
 			return sideways * sin(progress * TAU * 4.0) * strength * 0.60 - toward_hero * sin(progress * PI) * strength * 0.35
 		"mage_cast":
 			return Vector2(0.0, -absf(sin(progress * PI)) * strength * 0.55) + sideways * sin(progress * TAU * 3.0) * 1.8
+		"orc_smash":
+			return toward_hero * sin(progress * PI) * strength + sideways * sin(progress * TAU * 2.0) * 3.0
 		"grunt_lunge":
 			return toward_hero * sin(progress * PI) * strength + sideways * sin(progress * TAU * 2.0) * 2.0
 		_:
 			return sideways * sin(progress * TAU * 4.0) * strength
+
+
+func _draw_tabletop_base(pos: Vector2, radius: float, accent: Color) -> void:
+	# A flat single-colour pawn base replaces the old two-layer outline. It has
+	# no drop shadow, directional shading, or half-ring highlight.
+	draw_circle(pos, radius * 1.035, accent.darkened(0.38))
+	draw_arc(pos, radius * 1.01, 0.0, TAU, 36, accent.darkened(0.68), 1.5, true)
 
 
 func _draw_enemy(enemy: Dictionary) -> void:
@@ -3417,68 +4202,43 @@ func _draw_enemy(enemy: Dictionary) -> void:
 			var aura_radius := radius + 7.0 + float(aura_index) * 5.0
 			var breathe := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.010 + float(aura_index))
 			draw_arc(pos, aura_radius + breathe * 2.0, -PI * 0.85, PI * 0.35, 34, Color("ef5a3c", 0.16 + breathe * 0.10), 3.0, true)
-	draw_circle(pos, radius * 1.38, Color(RED, 0.065))
-	draw_circle(pos, radius * 1.10, Color("17100c"))
-	draw_arc(pos, radius * 1.10, 0, TAU, 44, BRONZE, 5.0, true)
-	draw_circle(pos, radius, Color("142316"))
+	if bool(enemy.get("objective_target", false)) and not exit_open:
+		var target_pulse := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.009 + pos.x)
+		draw_arc(pos, radius + 9.0 + target_pulse * 2.0, -PI * 0.86, -PI * 0.14, 22, Color(GOLD, 0.70 + target_pulse * 0.25), 3.0, true)
+		var marker_y := pos.y - radius - 31.0 - target_pulse * 3.0
+		var marker := PackedVector2Array([Vector2(pos.x, marker_y + 10.0), Vector2(pos.x - 7.0, marker_y), Vector2(pos.x + 7.0, marker_y)])
+		draw_colored_polygon(marker, GOLD)
+	_draw_tabletop_base(pos, radius, Color("b84b3f"))
 	var sprite_modulate := Color.WHITE.lerp(Color("fff1bd"), enemy.pulse * 0.72)
-	var sprite_rect := Rect2(pos - Vector2(radius, radius), Vector2(radius * 2.0, radius * 2.0))
-	draw_texture_rect(GOBLIN_TEXTURE, sprite_rect, false, sprite_modulate)
+	var sprite_radius := radius * 0.98
+	var sprite_rect := Rect2(pos - Vector2(sprite_radius, sprite_radius), Vector2(sprite_radius * 2.0, sprite_radius * 2.0))
+	var enemy_texture: Texture2D = GOBLIN_WARRIOR_TEXTURE
+	match String(enemy.kind):
+		"mage":
+			enemy_texture = GOBLIN_MAGE_TEXTURE
+		"boss":
+			enemy_texture = GOBLIN_KING_TEXTURE if is_warlord else ELITE_GOBLIN_TEXTURE
+		"orc":
+			enemy_texture = ORC_TEXTURE
+	draw_texture_rect(enemy_texture, sprite_rect, false, sprite_modulate)
 	if String(enemy.kind) == "mage":
 		_draw_mage_adornment(pos, radius, enemy)
+	if String(enemy.kind) == "orc":
+		_draw_orc_adornment(pos, radius, enemy)
 	if is_warlord:
 		_draw_warlord_adornment(pos, radius, enemy)
-	var ring_color := Color("ef5a3c") if is_warlord else (GOLD if enemy.kind == "boss" else (ARCANE if enemy.kind == "mage" else Color("b84b3f")))
-	draw_arc(pos, radius, 0, TAU, 40, ring_color, 3.0, true)
-	if enemy.kind == "boss" and not is_warlord:
-		_draw_crown(pos + Vector2(0, -radius - 26), 0.72)
+	var ring_color := Color("ef5a3c") if is_warlord else (GOLD if enemy.kind == "boss" else (ARCANE if enemy.kind == "mage" else (Color("d29a4a") if enemy.kind == "orc" else Color("b84b3f"))))
 	var bar_width := radius * 2.0
 	draw_rect(Rect2(pos.x - radius - 2, pos.y - radius - 15, bar_width + 4, 9), WOOD_DARK, true)
 	draw_rect(Rect2(pos.x - radius, pos.y - radius - 13, bar_width * maxf(0.0, float(enemy.hp) / float(enemy.max_hp)), 5), ring_color, true)
-	var attack_label := "RAGE %d/%d  ATK %d" % [int(enemy.rage_stacks), WARLORD_MAX_RAGE_STACKS, int(enemy.attack)] if is_warlord else ("ARCANE %d" % int(enemy.attack) if enemy.kind == "mage" else "ATK %d" % int(enemy.attack))
+	var attack_label := "RAGE %d/%d  ATK %d" % [int(enemy.rage_stacks), WARLORD_MAX_RAGE_STACKS, int(enemy.attack)] if is_warlord else ("ARCANE %d" % int(enemy.attack) if enemy.kind == "mage" else ("BROKEN %.1fs" % float(enemy.guard_broken_timer) if enemy.kind == "orc" and float(enemy.guard_broken_timer) > 0.0 else ("GUARD 90°  ATK %d" % int(enemy.attack) if enemy.kind == "orc" else "ATK %d" % int(enemy.attack))))
 	_text_center(Vector2(pos.x - radius - 8, pos.y + radius + 18), bar_width + 16.0, attack_label, 10, Color(ring_color, 0.94))
 
 
 func _draw_warlord_adornment(pos: Vector2, radius: float, enemy: Dictionary) -> void:
-	# Heavy shoulders, a horned helm and an axe keep the circular boss readable
-	# while separating him from the smaller crowned captains.
+	# The supplied king art carries the crown, armour and axe. Keep only the
+	# gameplay-driven rage pips so the image is not covered by duplicate gear.
 	var rage_stacks := int(enemy.rage_stacks)
-	var rage_glow := float(rage_stacks) / float(WARLORD_MAX_RAGE_STACKS)
-	draw_arc(pos + Vector2(-radius * 0.44, radius * 0.03), radius * 0.42, PI * 0.65, PI * 1.38, 16, Color("9e3028"), 9.0, true)
-	draw_arc(pos + Vector2(radius * 0.44, radius * 0.03), radius * 0.42, -PI * 0.38, PI * 0.35, 16, Color("9e3028"), 9.0, true)
-	var helm := PackedVector2Array([
-		pos + Vector2(-radius * 0.50, -radius * 0.18),
-		pos + Vector2(-radius * 0.31, -radius * 0.68),
-		pos + Vector2(0.0, -radius * 0.83),
-		pos + Vector2(radius * 0.31, -radius * 0.68),
-		pos + Vector2(radius * 0.50, -radius * 0.18),
-	])
-	draw_colored_polygon(helm, Color("35241d"))
-	draw_polyline(helm, Color("d49a55"), 3.0, true)
-	var left_horn := PackedVector2Array([
-		pos + Vector2(-radius * 0.30, -radius * 0.62),
-		pos + Vector2(-radius * 0.78, -radius * 0.94),
-		pos + Vector2(-radius * 0.52, -radius * 0.48),
-	])
-	var right_horn := PackedVector2Array([
-		pos + Vector2(radius * 0.30, -radius * 0.62),
-		pos + Vector2(radius * 0.78, -radius * 0.94),
-		pos + Vector2(radius * 0.52, -radius * 0.48),
-	])
-	draw_colored_polygon(left_horn, Color("e7d29f"))
-	draw_colored_polygon(right_horn, Color("e7d29f"))
-	var axe_bottom := pos + Vector2(radius * 0.66, radius * 0.65)
-	var axe_top := pos + Vector2(radius * 0.84, -radius * 0.43)
-	draw_line(axe_bottom, axe_top, Color("2a1710"), 8.0, true)
-	draw_line(axe_bottom, axe_top, Color("a96e3f"), 4.0, true)
-	var axe_blade := PackedVector2Array([
-		axe_top + Vector2(-3, -7),
-		axe_top + Vector2(22, -17),
-		axe_top + Vector2(19, 10),
-		axe_top + Vector2(-2, 8),
-	])
-	draw_colored_polygon(axe_blade, Color("e0d1b2").lerp(Color("ff7652"), rage_glow * 0.42))
-	draw_polyline(axe_blade, Color("5d2a20"), 2.0, true)
 	for stack_index in WARLORD_MAX_RAGE_STACKS:
 		var pip_pos := pos + Vector2(-27.0 + float(stack_index) * 18.0, radius + 35.0)
 		var active := stack_index < rage_stacks
@@ -3486,28 +4246,42 @@ func _draw_warlord_adornment(pos: Vector2, radius: float, enemy: Dictionary) -> 
 		draw_arc(pip_pos, 5.5, 0.0, TAU, 14, Color(GOLD, 0.82 if active else 0.28), 1.5, true)
 
 
+func _draw_orc_adornment(pos: Vector2, radius: float, enemy: Dictionary) -> void:
+	# The lower-facing shield is exactly the protected 90-degree collision arc.
+	# Keeping it on the round body makes the safe and vulnerable approaches
+	# readable while the ball is moving quickly.
+	var broken_time := float(enemy.get("guard_broken_timer", 0.0))
+	var shield_start := PI * 0.5 - ORC_GUARD_ARC * 0.5
+	var shield_end := PI * 0.5 + ORC_GUARD_ARC * 0.5
+	var shield_radius := radius * 1.24
+	if broken_time <= 0.0:
+		var guard_flash := clampf(float(enemy.get("guard_flash_timer", 0.0)) / 0.28, 0.0, 1.0)
+		if guard_flash > 0.0:
+			draw_arc(pos, shield_radius + 3.0, shield_start, shield_end, 18, Color("ffe292", guard_flash * 0.42), 24.0, true)
+		draw_arc(pos, shield_radius, shield_start, shield_end, 18, Color("17100ce8"), 18.0, true)
+		draw_arc(pos, shield_radius, shield_start, shield_end, 18, BRONZE.lightened(guard_flash * 0.35), 13.0, true)
+		draw_arc(pos, shield_radius - 2.0, shield_start, shield_end, 18, Color("edc36d"), 3.0 + guard_flash * 2.0, true)
+		for rivet_angle in [shield_start, PI * 0.5, shield_end]:
+			draw_circle(pos + Vector2.from_angle(rivet_angle) * shield_radius, 3.2, Color("f1d18a"))
+	else:
+		var break_alpha := clampf(broken_time / ORC_GUARD_BREAK_DURATION, 0.18, 0.72)
+		draw_arc(pos, shield_radius, shield_start, shield_start + 0.22, 5, Color("d29a4a", break_alpha), 7.0, true)
+		draw_arc(pos, shield_radius, shield_end - 0.22, shield_end, 5, Color("d29a4a", break_alpha), 7.0, true)
+
+
 func _draw_mage_adornment(pos: Vector2, radius: float, enemy: Dictionary) -> void:
-	# The mage keeps the same circular collision/readability as other enemies;
-	# a compact hat, staff and arcane glow make the role distinct at a glance.
+	# The supplied mage art already includes its hood and staff. Only add a small
+	# cast pulse at the pictured staff head when the mage attacks.
 	var cast_ratio := 0.0
 	if float(enemy.attack_fx_duration) > 0.0:
 		cast_ratio = clampf(float(enemy.attack_fx_timer) / float(enemy.attack_fx_duration), 0.0, 1.0)
 	var glow := maxf(float(enemy.pulse) * 0.55, cast_ratio)
-	var staff_bottom := pos + Vector2(radius * 0.64, radius * 0.58)
-	var staff_top := pos + Vector2(radius * 0.72, -radius * 0.54)
-	draw_line(staff_bottom, staff_top, Color("25160f"), 6.0, true)
-	draw_line(staff_bottom, staff_top, Color("a87545"), 3.0, true)
+	if glow <= 0.0:
+		return
+	var staff_focus := pos + Vector2(-radius * 0.52, -radius * 0.53)
 	for glow_ring in range(3, 0, -1):
-		draw_circle(staff_top, 4.0 + float(glow_ring) * 3.0 + glow * 4.0, Color(ARCANE, 0.025 + glow * 0.035))
-	draw_circle(staff_top, 5.0 + glow * 2.0, ARCANE)
-	draw_circle(staff_top - Vector2(1.5, 1.5), 1.8, Color("f4ddff"))
-	var hat := PackedVector2Array([
-		pos + Vector2(-radius * 0.72, -radius * 0.18),
-		pos + Vector2(-radius * 0.10, -radius * 0.94),
-		pos + Vector2(radius * 0.47, -radius * 0.22),
-	])
-	draw_colored_polygon(hat, Color("59316f"))
-	draw_polyline(PackedVector2Array([hat[0], hat[1], hat[2]]), Color("d19af3"), 2.0, true)
+		draw_circle(staff_focus, 2.0 + float(glow_ring) * 2.5 + glow * 3.0, Color(ARCANE, 0.02 + glow * 0.035))
+	draw_circle(staff_focus, 2.5 + glow * 1.5, Color(ARCANE, 0.72 * glow))
 	draw_line(pos + Vector2(-radius * 0.72, -radius * 0.17), pos + Vector2(radius * 0.50, -radius * 0.17), Color("c487e7"), 4.0, true)
 	if cast_ratio > 0.0:
 		var orbit_radius := radius * (1.18 + (1.0 - cast_ratio) * 0.18)
@@ -3535,23 +4309,29 @@ func _draw_ball() -> void:
 		return
 	if waiting_for_launch:
 		_draw_launch_placement_guide()
-	var base_visual_radius := BALL_RADIUS * permanent_size_scale
+	# Restore the visual footprint previously occupied by the removed double rim;
+	# collision remains based on BALL_RADIUS in _current_ball_radius().
+	var base_visual_radius := BALL_RADIUS * permanent_size_scale * BALL_VISUAL_SCALE
 	var visual_radius := base_visual_radius * MIGHT_VISUAL_SCALE if might_timer > 0.0 else base_visual_radius
-	var hero_color := Color("e46b4f") if war_cry_ready else (GOLD if charge_timer > 0.0 or might_timer > 0.0 or heavy_strike_ready else RUNE)
+	visual_radius = minf(visual_radius, BALL_MAX_VISUAL_RADIUS)
+	var hero_color := Color("e46b4f") if war_cry_ready else (GOLD if charge_fx_timer > 0.0 or might_timer > 0.0 or heavy_strike_ready else RUNE)
+	var boosted_fx := charge_fx_timer > 0.0 or dash_fx_timer > 0.0 or might_timer > 0.0 or war_cry_ready or heavy_strike_ready
 	for index in range(trail.size() - 1, -1, -1):
-		var boosted_fx := charge_timer > 0.0 or dash_fx_timer > 0.0 or might_timer > 0.0 or war_cry_ready or heavy_strike_ready
 		var alpha := (1.0 - float(index) / float(maxi(1, trail.size()))) * (0.48 if boosted_fx else 0.22)
 		var radius := visual_radius * (1.0 - float(index) / float(maxi(1, trail.size())) * 0.55)
 		draw_circle(trail[index], radius, Color(hero_color, alpha))
 
-	var glow_scale := 2.35 if dash_fx_timer > 0.0 else 1.85
-	draw_circle(ball_position, visual_radius * glow_scale, Color(hero_color, 0.16 if dash_fx_timer > 0.0 else 0.10))
-	draw_circle(ball_position, visual_radius * 1.16, Color("16100c"))
-	draw_arc(ball_position, visual_radius * 1.16, 0, TAU, 32, BRONZE, 2.0, true)
-	var sprite_radius := visual_radius * 1.08
+	if war_cry_ready:
+		var cry_breathe := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.009)
+		draw_circle(ball_position, visual_radius * (2.05 + cry_breathe * 0.16), Color("ff6b3d", 0.030 + cry_breathe * 0.025))
+		draw_circle(ball_position, visual_radius * (1.62 + cry_breathe * 0.10), Color("e64f38", 0.060 + cry_breathe * 0.035))
+	if boosted_fx:
+		var glow_scale := 2.35 if dash_fx_timer > 0.0 else 1.85
+		draw_circle(ball_position, visual_radius * glow_scale, Color(hero_color, 0.16 if dash_fx_timer > 0.0 else 0.10))
+	_draw_tabletop_base(ball_position, visual_radius, Color("497ca5"))
+	var sprite_radius := visual_radius * 0.98
 	var warrior_rect := Rect2(ball_position - Vector2(sprite_radius, sprite_radius), Vector2(sprite_radius * 2.0, sprite_radius * 2.0))
-	draw_texture_rect(WARRIOR_TEXTURE, warrior_rect, false, Color("fff4ca") if charge_timer > 0.0 else Color.WHITE)
-	draw_arc(ball_position, visual_radius, 0, TAU, 30, hero_color, 3.0, true)
+	draw_texture_rect(WARRIOR_TEXTURE, warrior_rect, false, Color("fff4ca") if charge_fx_timer > 0.0 else Color.WHITE)
 	if not pending_aftershocks.is_empty():
 		var aftershock_time := float(pending_aftershocks[0].timer)
 		var countdown := clampf(1.0 - aftershock_time / 0.40, 0.0, 1.0)
@@ -3560,8 +4340,6 @@ func _draw_ball() -> void:
 		draw_circle(rune_pos, 4.5, Color("fff0a5"))
 	if might_timer > 0.0:
 		draw_arc(ball_position, visual_radius + 4.0, -PI * 0.85, PI * 0.35, 22, Color(GOLD, 0.82), 2.0, true)
-	if war_cry_ready:
-		draw_arc(ball_position, visual_radius + 5.0, -0.65, 0.65, 14, Color("ff9f59"), 2.0, true)
 	if starting_style_id == "heavy_strike":
 		for pip_index in HEAVY_STRIKE_REQUIRED_HITS:
 			var angle := -PI * 0.78 + float(pip_index) * PI * 0.28
@@ -3793,25 +4571,24 @@ func _draw_upgrade_selection() -> void:
 	for glow_index in range(5, 0, -1):
 		var glow_radius := float(glow_index) * 85.0
 		draw_circle(Vector2(720, 166), glow_radius, Color(GOLD, reveal * (0.006 + float(6 - glow_index) * 0.004)))
-	var reward_title := "EXPAND YOUR COMBAT ARTS"
-	var reward_subtitle := "Unlock another art or enhance any one you own"
-	if upgrade_reward_kind == "ART_UNLOCK":
-		reward_title = "CHOOSE A COMBAT ART"
-		reward_subtitle = "Unlock a rebound-powered combat mechanism"
-	elif upgrade_reward_kind == "TRAINING":
+	var reward_title := "CHOOSE YOUR SPOILS"
+	var reward_subtitle := "Equip a new item or forge one you already carry"
+	if upgrade_reward_kind == "LEVEL_UP":
 		reward_title = "CHOOSE BATTLE TRAINING"
-		reward_subtitle = "Training improves the warrior's underlying numbers"
-	var rest_text := "REST +%d HP" % last_room_heal if last_room_heal > 0 else "REST • HEALTH FULL"
-	_text_center(Vector2(0, 100), SCREEN.x, "STAGE  1-%d  CLEARED" % stage_room, 17, Color(PARCHMENT, reveal))
+		reward_subtitle = "Level-ups improve the warrior; equipment remains separate"
+	var rest_text := "REST +%d HP" % last_room_heal if room_clear_resolution_pending and last_room_heal > 0 else ("REST • HEALTH FULL" if room_clear_resolution_pending else "TRAINING EARNED IN BATTLE")
+	var heading := "LEVEL %d" % hero_level if upgrade_reward_kind == "LEVEL_UP" else "STAGE  1-%d  CLEARED  •  TREASURE" % stage_room
+	_text_center(Vector2(0, 100), SCREEN.x, heading, 17, Color(PARCHMENT, reveal))
 	_text_center(Vector2(0, 151), SCREEN.x, reward_title, 34, Color("fff1c8", reveal))
-	_text_center(Vector2(0, 184), SCREEN.x, "%s  •  %s  •  NEXT: STAGE 1-%d" % [reward_subtitle, rest_text, stage_room + 1], 13, Color(MUTED, reveal))
+	var next_text := "  •  NEXT: STAGE 1-%d" % (stage_room + 1) if upgrade_reward_kind != "LEVEL_UP" else ("  •  %d TRAINING LEFT" % pending_level_ups if pending_level_ups > 0 else "")
+	_text_center(Vector2(0, 184), SCREEN.x, "%s  •  %s%s" % [reward_subtitle, rest_text, next_text], 13, Color(MUTED, reveal))
 	draw_line(Vector2(445, 204), Vector2(995, 204), Color(BRONZE, 0.66 * reveal), 2.0)
 
 	for index in upgrade_choices.size():
 		_draw_upgrade_card(index, upgrade_choices[index], _upgrade_card_rect(index))
 
 	_text_center(Vector2(0, 698), SCREEN.x, "CLICK A CARD  •  OR PRESS 1 / 2 / 3", 14, Color(PARCHMENT, reveal))
-	_text_center(Vector2(0, 733), SCREEN.x, "The battle pauses while spoils are chosen", 11, Color(MUTED, reveal * 0.82))
+	_text_center(Vector2(0, 733), SCREEN.x, "Training raises base stats; treasure changes combat mechanisms" if upgrade_reward_kind == "LEVEL_UP" else "Equipment occupies a dedicated weapon, armor, or relic slot", 11, Color(MUTED, reveal * 0.82))
 
 
 func _draw_upgrade_card(index: int, upgrade: Dictionary, rect: Rect2) -> void:
@@ -3846,7 +4623,7 @@ func _draw_upgrade_card(index: int, upgrade: Dictionary, rect: Rect2) -> void:
 		draw_rect(Rect2(card_rect.position + Vector2(38, 361), Vector2(card_rect.size.x - 76, 31)), Color(accent, 0.22), true)
 		_text_center(Vector2(card_rect.position.x + 38, card_rect.position.y + 383), card_rect.size.x - 76, "CHOSEN", 14, Color("fff7d6"))
 	elif is_hovered:
-		_text_center(Vector2(card_rect.position.x + 18, card_rect.position.y + 383), card_rect.size.x - 36, "TAKE THIS SPOIL", 12, accent)
+		_text_center(Vector2(card_rect.position.x + 18, card_rect.position.y + 383), card_rect.size.x - 36, "BEGIN TRAINING" if upgrade_reward_kind == "LEVEL_UP" else "TAKE THIS SPOIL", 12, accent)
 	else:
 		_text_center(Vector2(card_rect.position.x + 18, card_rect.position.y + 383), card_rect.size.x - 36, "CHOOSE", 12, Color(MUTED, 0.72))
 	if upgrade_selected_index >= 0 and not is_selected:
@@ -3922,7 +4699,7 @@ func _draw_run_complete() -> void:
 	_draw_corner_rivets(victory_box.grow(-12))
 	_draw_crown(Vector2(720, 296), 1.20)
 	_text_center(Vector2(victory_box.position.x, 358), victory_box.size.x, "ACT I COMPLETE", 36, Color("fff1c8"))
-	_text_center(Vector2(victory_box.position.x, 399), victory_box.size.x, "STAGES 1-1  THROUGH  1-5 CLEARED", 15, GOLD)
+	_text_center(Vector2(victory_box.position.x, 399), victory_box.size.x, "STAGES 1-1  THROUGH  1-9 CLEARED", 15, GOLD)
 	var final_rest_text := "FINAL REST  +%d HP" % last_room_heal if last_room_heal > 0 else "FINAL REST  •  HEALTH FULL"
 	_text_center(Vector2(victory_box.position.x, 429), victory_box.size.x, final_rest_text, 11, GREEN)
 	var spoil_text := "NO SPOILS" if upgrade_history.is_empty() else "SPOIL:  %s" % upgrade_history[-1]
@@ -4107,11 +4884,7 @@ func _speed_color(speed: float) -> Color:
 
 
 func _speed_tier_name(speed: float) -> String:
-	if speed >= 930.0:
-		return "CHARGED  x1.60 DMG"
-	if speed >= 760.0:
-		return "FAST  x1.30 DMG"
-	return "NORMAL  x1.00 DMG"
+	return "IMPACT  x%.2f DAMAGE" % _speed_damage_multiplier(speed)
 
 
 func _text(pos: Vector2, text: String, size: int, color: Color) -> void:
