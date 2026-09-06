@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cbi013s4btw44"
+path="res://.godot/imported/war cry.wav-431b3346e02bc45cc33a4a29c8af97d8.sample"
+
+[deps]
+
+source_file="res://assets/sfx/war cry.wav"
+dest_files=["res://.godot/imported/war cry.wav-431b3346e02bc45cc33a4a29c8af97d8.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2
