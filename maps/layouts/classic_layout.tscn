@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://maps/layouts/open_layout.tscn" id="1_open"]
+[ext_resource type="Script" path="res://maps/map_wall.gd" id="2_wall"]
+
+[node name="ClassicLayout" type="Node2D"]
+
+[node name="SafeCabinet" parent="." instance=ExtResource("1_open")]
+
+[node name="UpperBanks" type="Node2D" parent="."]
+
+[node name="LeftUpperBank" type="Node2D" parent="UpperBanks"]
+position = Vector2(620, 285)
+script = ExtResource("2_wall")
+end_offset = Vector2(-60, 70)
+friction = 0.24
+
+[node name="RightUpperBank" type="Node2D" parent="UpperBanks"]
+position = Vector2(820, 285)
+script = ExtResource("2_wall")
+end_offset = Vector2(60, 70)
+friction = 0.24

@@ -1,0 +1,114 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://maps/map_wall.gd" id="1_wall"]
+[ext_resource type="Script" path="res://maps/map_trigger.gd" id="2_trigger"]
+
+[node name="OpenLayout" type="Node2D"]
+
+[node name="CabinetWalls" type="Node2D" parent="."]
+
+[node name="UpperLeftSlope" type="Node2D" parent="CabinetWalls"]
+position = Vector2(380, 105)
+script = ExtResource("1_wall")
+end_offset = Vector2(90, -57)
+
+[node name="ExitLeft" type="Node2D" parent="CabinetWalls"]
+position = Vector2(470, 48)
+script = ExtResource("1_wall")
+end_offset = Vector2(175, 0)
+
+[node name="ExitRight" type="Node2D" parent="CabinetWalls"]
+position = Vector2(795, 48)
+script = ExtResource("1_wall")
+end_offset = Vector2(175, 0)
+
+[node name="UpperRightSlope" type="Node2D" parent="CabinetWalls"]
+position = Vector2(970, 48)
+script = ExtResource("1_wall")
+end_offset = Vector2(90, 57)
+
+[node name="LeftSide" type="Node2D" parent="CabinetWalls"]
+position = Vector2(380, 105)
+script = ExtResource("1_wall")
+end_offset = Vector2(0, 535)
+
+[node name="RightSide" type="Node2D" parent="CabinetWalls"]
+position = Vector2(1060, 105)
+script = ExtResource("1_wall")
+end_offset = Vector2(0, 535)
+
+[node name="LeftFunnel" type="Node2D" parent="CabinetWalls"]
+position = Vector2(380, 640)
+script = ExtResource("1_wall")
+end_offset = Vector2(125, 115)
+
+[node name="RightFunnel" type="Node2D" parent="CabinetWalls"]
+position = Vector2(1060, 640)
+script = ExtResource("1_wall")
+end_offset = Vector2(-125, 115)
+
+[node name="LeftDrainRail" type="Node2D" parent="CabinetWalls"]
+position = Vector2(505, 755)
+script = ExtResource("1_wall")
+end_offset = Vector2(15, 80)
+
+[node name="RightDrainRail" type="Node2D" parent="CabinetWalls"]
+position = Vector2(935, 755)
+script = ExtResource("1_wall")
+end_offset = Vector2(-15, 80)
+
+[node name="LeftSlingshot" type="Node2D" parent="CabinetWalls"]
+position = Vector2(505, 625)
+script = ExtResource("1_wall")
+end_offset = Vector2(80, 65)
+friction = 0.3
+
+[node name="RightSlingshot" type="Node2D" parent="CabinetWalls"]
+position = Vector2(935, 625)
+script = ExtResource("1_wall")
+end_offset = Vector2(-80, 65)
+friction = 0.3
+
+[node name="CombatRunes" type="Node2D" parent="."]
+
+[node name="Momentum" type="Node2D" parent="CombatRunes"]
+position = Vector2(460, 340)
+script = ExtResource("2_trigger")
+trigger_id = "momentum"
+display_name = "MOMENTUM  +30%"
+radius = 22.0
+visual_radius = 27.0
+accent_color = Color(0.396078, 0.835294, 0.909804, 1)
+activation_cooldown = 3.0
+
+[node name="WarCry" type="Node2D" parent="CombatRunes"]
+position = Vector2(980, 340)
+script = ExtResource("2_trigger")
+trigger_id = "war_cry"
+display_name = "WAR CRY  +40%"
+radius = 20.0
+visual_radius = 25.0
+accent_color = Color(0.894118, 0.419608, 0.309804, 1)
+activation_cooldown = 4.0
+
+[node name="FurySkills" type="Node2D" parent="."]
+
+[node name="Guard" type="Node2D" parent="FurySkills"]
+position = Vector2(455, 570)
+script = ExtResource("2_trigger")
+trigger_type = "fury_skill"
+trigger_id = "guard"
+display_name = "GUARD"
+radius = 25.0
+visual_radius = 25.0
+accent_color = Color(0.470588, 0.788235, 0.478431, 1)
+
+[node name="Charge" type="Node2D" parent="FurySkills"]
+position = Vector2(985, 570)
+script = ExtResource("2_trigger")
+trigger_type = "fury_skill"
+trigger_id = "charge"
+display_name = "CHARGE"
+radius = 25.0
+visual_radius = 25.0
+accent_color = Color(0.937255, 0.741176, 0.380392, 1)

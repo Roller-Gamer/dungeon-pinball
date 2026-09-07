@@ -1,0 +1,82 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://maps/layouts/open_layout.tscn" id="1_open"]
+[ext_resource type="Script" path="res://maps/map_wall.gd" id="2_wall"]
+
+[node name="RingLayout" type="Node2D"]
+
+[node name="SafeCabinet" parent="." instance=ExtResource("1_open")]
+
+[node name="RingCorridor" type="Node2D" parent="."]
+
+[node name="LeftLowerSlope" type="Node2D" parent="RingCorridor"]
+position = Vector2(575, 585)
+script = ExtResource("2_wall")
+end_offset = Vector2(-25, -80)
+friction = 0.1
+
+[node name="LeftLowerWall" type="Node2D" parent="RingCorridor"]
+position = Vector2(550, 505)
+script = ExtResource("2_wall")
+end_offset = Vector2(0, -160)
+friction = 0.1
+
+[node name="LeftLowerCap" type="Node2D" parent="RingCorridor"]
+position = Vector2(550, 345)
+script = ExtResource("2_wall")
+end_offset = Vector2(5, -20)
+friction = 0.1
+
+[node name="LeftCrossoverUpper" type="Node2D" parent="RingCorridor"]
+position = Vector2(590, 255)
+script = ExtResource("2_wall")
+end_offset = Vector2(20, -40)
+friction = 0.1
+
+[node name="LeftArchSlope" type="Node2D" parent="RingCorridor"]
+position = Vector2(610, 215)
+script = ExtResource("2_wall")
+end_offset = Vector2(40, -50)
+friction = 0.1
+
+[node name="LeftCrown" type="Node2D" parent="RingCorridor"]
+position = Vector2(650, 165)
+script = ExtResource("2_wall")
+end_offset = Vector2(25, -10)
+friction = 0.1
+
+[node name="RightCrown" type="Node2D" parent="RingCorridor"]
+position = Vector2(765, 155)
+script = ExtResource("2_wall")
+end_offset = Vector2(25, 10)
+friction = 0.1
+
+[node name="RightArchSlope" type="Node2D" parent="RingCorridor"]
+position = Vector2(790, 165)
+script = ExtResource("2_wall")
+end_offset = Vector2(40, 50)
+friction = 0.1
+
+[node name="RightCrossoverUpper" type="Node2D" parent="RingCorridor"]
+position = Vector2(830, 215)
+script = ExtResource("2_wall")
+end_offset = Vector2(20, 40)
+friction = 0.1
+
+[node name="RightLowerCap" type="Node2D" parent="RingCorridor"]
+position = Vector2(885, 325)
+script = ExtResource("2_wall")
+end_offset = Vector2(5, 20)
+friction = 0.1
+
+[node name="RightLowerWall" type="Node2D" parent="RingCorridor"]
+position = Vector2(890, 345)
+script = ExtResource("2_wall")
+end_offset = Vector2(0, 160)
+friction = 0.1
+
+[node name="RightLowerSlope" type="Node2D" parent="RingCorridor"]
+position = Vector2(890, 505)
+script = ExtResource("2_wall")
+end_offset = Vector2(-25, 80)
+friction = 0.1
