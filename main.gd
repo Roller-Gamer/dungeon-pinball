@@ -29,6 +29,7 @@ const SFX_WARLORD_DEATH := preload("res://assets/sfx/boss1_die.wav")
 const BGM_NORMAL_LEVEL := preload("res://assets/music/normal level.ogg")
 const BGM_HARD_FIGHT := preload("res://assets/music/hard_fight_action.ogg")
 const EQUIPMENT_SELECTION_SCENE := preload("res://ui/equipment_selection.tscn")
+const TRAINING_SELECTION_SCENE := preload("res://ui/training_selection.tscn")
 
 const SCREEN := Vector2(1440.0, 900.0)
 const FIELD_LEFT := 350.0
@@ -245,6 +246,7 @@ var passive_enemy_phase_seen := false
 var passive_expected_hp := HERO_MAX_HP
 var upgrade_preview_mode := false
 var mechanism_preview_mode := false
+var training_preview_mode := false
 var effects_preview_mode := false
 var mage_preview_mode := false
 var boss_preview_mode := false
@@ -265,10 +267,10 @@ var upgrade_selection_active := false
 var upgrade_selection_timer := 0.0
 var upgrade_exit_timer := -1.0
 var upgrade_selected_index := -1
-var upgrade_hover_index := -1
 var upgrade_choices: Array[Dictionary] = []
 var upgrade_reward_kind := ""
 var equipment_selection_ui: Control
+var training_selection_ui: Control
 
 var starting_style_id := ""
 var starting_style_selection_active := false
@@ -314,12 +316,14 @@ func _ready() -> void:
 	_setup_audio()
 	_setup_table()
 	_setup_equipment_selection_ui()
+	_setup_training_selection_ui()
 	restart_run()
 	var command_line := OS.get_cmdline_user_args()
 	smoke_mode = "--smoke-test" in command_line
 	passive_test_mode = "--passive-test" in command_line
 	upgrade_preview_mode = "--upgrade-preview" in command_line
 	mechanism_preview_mode = "--mechanism-preview" in command_line
+	training_preview_mode = "--training-preview" in command_line
 	effects_preview_mode = "--effects-preview" in command_line
 	mage_preview_mode = "--mage-preview" in command_line
 	boss_preview_mode = "--boss-preview" in command_line
@@ -353,6 +357,16 @@ func _ready() -> void:
 			_upgrade_definition("shield_bash"),
 		]
 		_refresh_equipment_selection_ui()
+	elif training_preview_mode:
+		starting_style_selection_active = false
+		enemies.clear()
+		hero_level = 2
+		upgrade_reward_kind = "LEVEL_UP"
+		_open_upgrade_selection([
+			_upgrade_definition("sharpened_blade"),
+			_upgrade_definition("windrunner_boots"),
+			_upgrade_definition("shield_training"),
+		])
 	elif effects_preview_mode:
 		starting_style_selection_active = false
 		waiting_for_launch = false
@@ -668,9 +682,14 @@ func _run_progression_test() -> void:
 	_grant_enemy_experience({"kind": "grunt", "is_warlord": false, "pos": Vector2.ZERO, "radius": 20.0})
 	_show_level_up_selection()
 	upgrade_choices = [_upgrade_definition("sharpened_blade")]
-	_select_upgrade(0)
+	_refresh_training_selection_ui()
+	if not training_selection_ui.visible:
+		push_error("Progression test failed: training scene not presented")
+		_quit_test(2)
+		return
+	training_selection_ui.training_chosen.emit(0)
 	if hero_level != 2 or hero_xp != 5 or pending_level_ups != 0 or upgrade_reward_kind != "LEVEL_UP" or absf(impact_coefficient - 1.10) > 0.001:
-		push_error("Progression test failed: queued level training")
+		push_error("Progression test failed: training UI signal or queued level training")
 		_quit_test(2)
 		return
 	_complete_upgrade_selection()
@@ -1267,11 +1286,12 @@ func restart_run() -> void:
 	upgrade_selection_timer = 0.0
 	upgrade_exit_timer = -1.0
 	upgrade_selected_index = -1
-	upgrade_hover_index = -1
 	upgrade_choices.clear()
 	upgrade_reward_kind = ""
 	if is_instance_valid(equipment_selection_ui):
 		equipment_selection_ui.hide_selection()
+	if is_instance_valid(training_selection_ui):
+		training_selection_ui.hide_selection()
 	starting_style_id = ""
 	starting_style_selection_active = false
 	starting_style_selection_timer = 0.0
@@ -1829,19 +1849,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif selection_key.keycode >= KEY_1 and selection_key.keycode <= KEY_3:
 				_select_upgrade(int(selection_key.keycode - KEY_1))
 			return
-		# Equipment mouse input is owned by the editable Control scene. Training
-		# remains on the original code-drawn cards until its own UI migration.
-		if upgrade_reward_kind == "EQUIPMENT":
-			return
-		if event is InputEventMouseMotion:
-			upgrade_hover_index = _upgrade_card_at_position((event as InputEventMouseMotion).position)
-			queue_redraw()
-			return
-		if event is InputEventMouseButton:
-			var mouse_event := event as InputEventMouseButton
-			if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
-				_select_upgrade(_upgrade_card_at_position(mouse_event.position))
-			return
+		# Both reward overlays own their mouse input as editable Control scenes.
+		return
 
 	if waiting_for_launch and event is InputEventMouseMotion:
 		var hover_motion := event as InputEventMouseMotion
@@ -3047,6 +3056,12 @@ func _setup_equipment_selection_ui() -> void:
 	equipment_selection_ui.item_chosen.connect(_select_upgrade)
 
 
+func _setup_training_selection_ui() -> void:
+	training_selection_ui = TRAINING_SELECTION_SCENE.instantiate()
+	add_child(training_selection_ui)
+	training_selection_ui.training_chosen.connect(_select_upgrade)
+
+
 func _refresh_equipment_selection_ui() -> void:
 	if not is_instance_valid(equipment_selection_ui):
 		return
@@ -3054,6 +3069,15 @@ func _refresh_equipment_selection_ui() -> void:
 		equipment_selection_ui.present(upgrade_choices, upgrade_levels, stage_room, room_clear_resolution_pending, last_room_heal)
 	else:
 		equipment_selection_ui.hide_selection()
+
+
+func _refresh_training_selection_ui() -> void:
+	if not is_instance_valid(training_selection_ui):
+		return
+	if upgrade_selection_active and upgrade_reward_kind == "LEVEL_UP":
+		training_selection_ui.present(upgrade_choices, upgrade_levels, hero_level, pending_level_ups, room_clear_resolution_pending, last_room_heal)
+	else:
+		training_selection_ui.hide_selection()
 
 
 func _show_upgrade_selection() -> void:
@@ -3101,27 +3125,11 @@ func _open_upgrade_selection(available: Array[Dictionary]) -> void:
 	upgrade_selection_timer = 0.0
 	upgrade_exit_timer = -1.0
 	upgrade_selected_index = -1
-	upgrade_hover_index = -1
 	waiting_for_launch = false
 	ball_active = false
 	status_timer = 0.0
 	_refresh_equipment_selection_ui()
-
-
-func _upgrade_card_rect(index: int) -> Rect2:
-	var delay := float(index) * 0.10
-	var appear := clampf((upgrade_selection_timer - delay) / 0.34, 0.0, 1.0)
-	appear = 1.0 - pow(1.0 - appear, 3.0)
-	return Rect2(245.0 + float(index) * 315.0, 235.0 + (1.0 - appear) * 150.0, 290.0, 410.0)
-
-
-func _upgrade_card_at_position(position: Vector2) -> int:
-	if upgrade_selected_index >= 0 or upgrade_selection_timer < 0.22:
-		return -1
-	for index in upgrade_choices.size():
-		if _upgrade_card_rect(index).has_point(position):
-			return index
-	return -1
+	_refresh_training_selection_ui()
 
 
 func _select_upgrade(index: int) -> void:
@@ -3133,6 +3141,8 @@ func _select_upgrade(index: int) -> void:
 	upgrade_exit_timer = 0.58
 	if upgrade_reward_kind == "EQUIPMENT" and is_instance_valid(equipment_selection_ui):
 		equipment_selection_ui.mark_selected(index)
+	elif upgrade_reward_kind == "LEVEL_UP" and is_instance_valid(training_selection_ui):
+		training_selection_ui.mark_selected(index)
 	var choice := upgrade_choices[index]
 	_apply_upgrade(choice)
 	upgrade_history.append(String(choice.name))
@@ -3148,11 +3158,12 @@ func _complete_upgrade_selection() -> void:
 	upgrade_selection_timer = 0.0
 	upgrade_exit_timer = -1.0
 	upgrade_selected_index = -1
-	upgrade_hover_index = -1
 	upgrade_choices.clear()
 	upgrade_reward_kind = ""
 	if is_instance_valid(equipment_selection_ui):
 		equipment_selection_ui.hide_selection()
+	if is_instance_valid(training_selection_ui):
+		training_selection_ui.hide_selection()
 	if completed_kind == "LEVEL_UP":
 		if pending_level_ups > 0:
 			_show_level_up_selection()
@@ -3225,7 +3236,6 @@ func _advance_to_next_room() -> void:
 	upgrade_selection_timer = 0.0
 	upgrade_exit_timer = -1.0
 	upgrade_selected_index = -1
-	upgrade_hover_index = -1
 	upgrade_choices.clear()
 	upgrade_reward_kind = ""
 	room_clear_resolution_pending = false
@@ -4471,8 +4481,6 @@ func _draw_overlay() -> void:
 
 	if starting_style_selection_active:
 		_draw_starting_style_selection()
-	elif upgrade_selection_active and upgrade_reward_kind == "LEVEL_UP":
-		_draw_upgrade_selection()
 	elif run_complete:
 		_draw_run_complete()
 
@@ -4598,125 +4606,6 @@ func _draw_starting_style_icon(id: String, center: Vector2, color: Color) -> voi
 			for ray_index in 4:
 				var direction := Vector2.from_angle(-PI * 0.75 + float(ray_index) * PI * 0.50)
 				draw_line(center + direction * 27.0, center + direction * 36.0, color, 3.0, true)
-
-
-func _draw_upgrade_selection() -> void:
-	var reveal := clampf(upgrade_selection_timer / 0.26, 0.0, 1.0)
-	draw_rect(Rect2(Vector2.ZERO, SCREEN), Color("070806", 0.82 * reveal), true)
-	for glow_index in range(5, 0, -1):
-		var glow_radius := float(glow_index) * 85.0
-		draw_circle(Vector2(720, 166), glow_radius, Color(GOLD, reveal * (0.006 + float(6 - glow_index) * 0.004)))
-	var rest_text := "REST +%d HP" % last_room_heal if room_clear_resolution_pending and last_room_heal > 0 else ("REST • HEALTH FULL" if room_clear_resolution_pending else "TRAINING EARNED IN BATTLE")
-	var next_text := "  •  %d TRAINING LEFT" % pending_level_ups if pending_level_ups > 0 else ""
-	_text_center(Vector2(0, 100), SCREEN.x, "LEVEL %d" % hero_level, 17, Color(PARCHMENT, reveal))
-	_text_center(Vector2(0, 151), SCREEN.x, "CHOOSE BATTLE TRAINING", 34, Color("fff1c8", reveal))
-	_text_center(Vector2(0, 184), SCREEN.x, "Level-ups improve the warrior; equipment remains separate  •  %s%s" % [rest_text, next_text], 13, Color(MUTED, reveal))
-	draw_line(Vector2(445, 204), Vector2(995, 204), Color(BRONZE, 0.66 * reveal), 2.0)
-
-	for index in upgrade_choices.size():
-		_draw_upgrade_card(index, upgrade_choices[index], _upgrade_card_rect(index))
-
-	_text_center(Vector2(0, 698), SCREEN.x, "CLICK A TRAINING CARD  •  OR PRESS 1 / 2 / 3", 14, Color(PARCHMENT, reveal))
-	_text_center(Vector2(0, 733), SCREEN.x, "Training raises the warrior's base statistics", 11, Color(MUTED, reveal * 0.82))
-
-
-func _draw_upgrade_card(index: int, upgrade: Dictionary, rect: Rect2) -> void:
-	var id := String(upgrade.id)
-	var accent := Color(String(upgrade.color))
-	var is_hovered := index == upgrade_hover_index and upgrade_selected_index < 0
-	var is_selected := index == upgrade_selected_index
-	var pulse := 0.5 + 0.5 * sin(upgrade_selection_timer * 14.0)
-	var border := accent.lightened(0.22) if is_hovered or is_selected else BRONZE
-	var grow := (2.0 + pulse * 3.0) if is_selected else (3.0 if is_hovered else 0.0)
-	var card_rect := rect.grow(grow)
-	draw_rect(card_rect.grow(7), Color("080604d9"), true)
-	if is_selected:
-		draw_rect(card_rect.grow(12 + pulse * 4.0), Color(accent, 0.20 * (1.0 - pulse * 0.35)), false, 5.0)
-	draw_rect(card_rect, Color("33271f"), true)
-	draw_rect(card_rect.grow(-7), Color("1d1d19"), true)
-	draw_rect(card_rect, border, false, 4.0 if is_hovered or is_selected else 2.0)
-	draw_rect(Rect2(card_rect.position + Vector2(7, 7), Vector2(card_rect.size.x - 14, 8)), accent, true)
-	_draw_corner_rivets(card_rect.grow(-9))
-	_text_center(Vector2(card_rect.position.x, card_rect.position.y + 38), card_rect.size.x, "%d" % (index + 1), 13, accent)
-	_text_center(Vector2(card_rect.position.x, card_rect.position.y + 63), card_rect.size.x, String(upgrade.type), 11, Color(accent, 0.92))
-	_draw_reward_icon(id, card_rect.position + Vector2(card_rect.size.x * 0.5, 121), accent)
-	_text_center(Vector2(card_rect.position.x + 10, card_rect.position.y + 195), card_rect.size.x - 20, String(upgrade.name), 21, Color("fff1c8"))
-	draw_line(card_rect.position + Vector2(35, 216), Vector2(card_rect.end.x - 35, card_rect.position.y + 216), Color(accent, 0.46), 2.0)
-	_text_center(Vector2(card_rect.position.x + 18, card_rect.position.y + 258), card_rect.size.x - 36, String(upgrade.line_1), 13, Color("f0ddbc"))
-	_text_center(Vector2(card_rect.position.x + 18, card_rect.position.y + 287), card_rect.size.x - 36, String(upgrade.line_2), 12, MUTED)
-	var shown_level := int(upgrade_levels.get(id, 0))
-	if not is_selected:
-		shown_level += 1
-	_text_center(Vector2(card_rect.position.x + 18, card_rect.position.y + 340), card_rect.size.x - 36, "LEVEL %d / %d" % [shown_level, int(upgrade.max_level)], 12, Color(accent, 0.90))
-	if is_selected:
-		draw_rect(Rect2(card_rect.position + Vector2(38, 361), Vector2(card_rect.size.x - 76, 31)), Color(accent, 0.22), true)
-		_text_center(Vector2(card_rect.position.x + 38, card_rect.position.y + 383), card_rect.size.x - 76, "CHOSEN", 14, Color("fff7d6"))
-	elif is_hovered:
-		_text_center(Vector2(card_rect.position.x + 18, card_rect.position.y + 383), card_rect.size.x - 36, "BEGIN TRAINING" if upgrade_reward_kind == "LEVEL_UP" else "TAKE THIS SPOIL", 12, accent)
-	else:
-		_text_center(Vector2(card_rect.position.x + 18, card_rect.position.y + 383), card_rect.size.x - 36, "CHOOSE", 12, Color(MUTED, 0.72))
-	if upgrade_selected_index >= 0 and not is_selected:
-		draw_rect(card_rect, Color("090a08a6"), true)
-
-
-func _draw_reward_icon(id: String, center: Vector2, color: Color) -> void:
-	draw_circle(center, 46.0, Color(color, 0.08))
-	draw_arc(center, 43.0, 0.0, TAU, 42, Color(color, 0.52), 2.0, true)
-	match id:
-		"sharpened_blade":
-			draw_line(center + Vector2(-19, 24), center + Vector2(15, -19), Color("fff1c8"), 7.0, true)
-			var blade := PackedVector2Array([center + Vector2(10, -16), center + Vector2(27, -31), center + Vector2(20, -8)])
-			draw_colored_polygon(blade, color)
-			draw_line(center + Vector2(-25, 18), center + Vector2(-9, 31), Color("b9844d"), 6.0, true)
-		"windrunner_boots":
-			var boot := PackedVector2Array([center + Vector2(-15, -25), center + Vector2(5, -25), center + Vector2(5, 8), center + Vector2(28, 18), center + Vector2(25, 30), center + Vector2(-13, 28), center + Vector2(-22, 12)])
-			draw_colored_polygon(boot, Color(color, 0.80))
-			draw_polyline(boot, Color("fff1c8"), 2.0, true)
-			for streak_y in [-13.0, 0.0, 13.0]:
-				draw_line(center + Vector2(-42, streak_y), center + Vector2(-26, streak_y - 4), color, 3.0, true)
-		"giants_belt":
-			draw_line(center + Vector2(-34, 0), center + Vector2(34, 0), Color("8b5135"), 18.0, true)
-			draw_rect(Rect2(center - Vector2(15, 15), Vector2(30, 30)), color, true)
-			draw_rect(Rect2(center - Vector2(8, 8), Vector2(16, 16)), Color("36251b"), true)
-		"spring_plate":
-			var spring_points := PackedVector2Array([center + Vector2(-30, -22), center + Vector2(-12, -7), center + Vector2(-29, 7), center + Vector2(-10, 22), center + Vector2(9, 7), center + Vector2(-7, -7), center + Vector2(12, -22), center + Vector2(30, -7)])
-			draw_polyline(spring_points, color, 7.0, true)
-			draw_line(center + Vector2(-34, 31), center + Vector2(34, 31), Color("fff1c8"), 5.0, true)
-		"moving_aftershock":
-			for ring_index in range(2):
-				var ring_center := center + Vector2(-13.0 + float(ring_index) * 26.0, 0.0)
-				draw_arc(ring_center, 17.0, 0.0, TAU, 24, color, 4.0, true)
-				draw_circle(ring_center, 6.0, Color("fff0a5"))
-			draw_line(center + Vector2(-5, -25), center + Vector2(15, -25), Color("fff1c8"), 3.0, true)
-			draw_line(center + Vector2(15, -25), center + Vector2(8, -32), Color("fff1c8"), 3.0, true)
-		"blast_impact", "blast_damage", "blast_radius", "blast_cooldown":
-			for ray in range(10):
-				var direction := Vector2.from_angle(TAU * float(ray) / 10.0)
-				draw_line(center + direction * 13.0, center + direction * (28.0 + float(ray % 3) * 5.0), color, 5.0, true)
-			draw_circle(center, 17.0, Color("fff0a5"))
-			draw_circle(center, 8.0, Color("f15c35"))
-		"returning_axe":
-			_draw_axe_shape(center, -0.72, 1.18, Color("ddd5be"))
-			draw_arc(center, 36.0, -PI * 0.10, PI * 1.30, 24, color, 4.0, true)
-			var arrow_tip := center + Vector2.from_angle(PI * 1.30) * 36.0
-			draw_line(arrow_tip, arrow_tip + Vector2(12, -2), color, 4.0, true)
-			draw_line(arrow_tip, arrow_tip + Vector2(3, 11), color, 4.0, true)
-		"throwing_axe", "axe_damage", "axe_count", "axe_cooldown":
-			_draw_axe_shape(center, -0.72, 1.35, Color("ddd5be"))
-		"shield_bash":
-			_draw_shield(center + Vector2(-5, 0), 1.32, color)
-			for ray_y in [-18.0, 0.0, 18.0]:
-				draw_line(center + Vector2(22, ray_y * 0.62), center + Vector2(39, ray_y), Color("fff1c8"), 4.0, true)
-		"spiked_shield", "spike_damage", "spike_scatter", "shieldbreak_retort":
-			_draw_shield(center, 1.40, color)
-			# Eight evenly readable contact points wrap the complete shield. The
-			# previous list stopped on the lower-right, leaving the middle-left and
-			# lower-left edges visibly bare.
-			for spike_angle in [-2.55, -1.85, -1.29, -0.59, 0.24, 0.88, 2.26, 2.90]:
-				var spike_direction := Vector2.from_angle(spike_angle)
-				draw_line(center + spike_direction * 20.0, center + spike_direction * 31.0, Color("fff1c8"), 4.0, true)
-		"shield_training", "residual_shield":
-			_draw_shield(center, 1.45, color)
 
 
 func _draw_run_complete() -> void:

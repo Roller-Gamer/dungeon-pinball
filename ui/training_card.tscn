@@ -1,0 +1,289 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://ui/training_card.gd" id="1_card"]
+[ext_resource type="Script" path="res://ui/training_icon.gd" id="2_icon"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_shadow"]
+bg_color = Color(0.0156863, 0.0117647, 0.00784314, 0.78)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_glow"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.901961, 0.435294, 0.309804, 0.92)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+expand_margin_left = 5.0
+expand_margin_top = 5.0
+expand_margin_right = 5.0
+expand_margin_bottom = 5.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
+bg_color = Color(0.184314, 0.137255, 0.105882, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.901961, 0.435294, 0.309804, 0.76)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_inner"]
+bg_color = Color(0.0980392, 0.0901961, 0.0745098, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.658824, 0.47451, 0.231373, 0.48)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_badge"]
+bg_color = Color(0.0745098, 0.0588235, 0.0431373, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.901961, 0.435294, 0.309804, 1)
+corner_radius_top_left = 17
+corner_radius_top_right = 17
+corner_radius_bottom_right = 17
+corner_radius_bottom_left = 17
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_action"]
+bg_color = Color(0.901961, 0.435294, 0.309804, 0.16)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.901961, 0.435294, 0.309804, 0.64)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="TrainingCard" type="Control"]
+custom_minimum_size = Vector2(290, 410)
+offset_right = 290.0
+offset_bottom = 410.0
+pivot_offset = Vector2(145, 205)
+mouse_filter = 0
+focus_mode = 2
+script = ExtResource("1_card")
+
+[node name="Shadow" type="Panel" parent="."]
+layout_mode = 0
+offset_left = -7.0
+offset_top = 8.0
+offset_right = 297.0
+offset_bottom = 419.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_shadow")
+
+[node name="SelectionGlow" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = -3.0
+offset_top = -3.0
+offset_right = 293.0
+offset_bottom = 413.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_glow")
+
+[node name="CardFrame" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 290.0
+offset_bottom = 410.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="InnerFrame" type="Panel" parent="CardFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 282.0
+offset_bottom = 402.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_inner")
+
+[node name="TopStripe" type="ColorRect" parent="CardFrame/InnerFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 3.0
+offset_top = 3.0
+offset_right = 271.0
+offset_bottom = 11.0
+mouse_filter = 2
+color = Color(0.901961, 0.435294, 0.309804, 1)
+
+[node name="IndexBadge" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 20.0
+offset_top = 21.0
+offset_right = 54.0
+offset_bottom = 55.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_badge")
+
+[node name="IndexLabel" type="Label" parent="IndexBadge"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.945098, 0.784314, 1)
+theme_override_font_sizes/font_size = 14
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TypeLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 58.0
+offset_top = 22.0
+offset_right = 271.0
+offset_bottom = 54.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.901961, 0.435294, 0.309804, 1)
+theme_override_font_sizes/font_size = 11
+text = "POWER TRAINING"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TrainingIcon" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 94.0
+offset_top = 61.0
+offset_right = 196.0
+offset_bottom = 163.0
+mouse_filter = 2
+script = ExtResource("2_icon")
+
+[node name="TrainingName" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 14.0
+offset_top = 166.0
+offset_right = 276.0
+offset_bottom = 204.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.945098, 0.784314, 1)
+theme_override_font_sizes/font_size = 21
+text = "IMPACT MASTERY"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Divider" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 35.0
+offset_top = 211.0
+offset_right = 255.0
+offset_bottom = 213.0
+mouse_filter = 2
+color = Color(0.901961, 0.435294, 0.309804, 0.5)
+
+[node name="LineOne" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 15.0
+offset_top = 226.0
+offset_right = 275.0
+offset_bottom = 267.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.941176, 0.866667, 0.737255, 1)
+theme_override_font_sizes/font_size = 13
+text = "Speed-to-damage conversion +10%"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="LineTwo" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 15.0
+offset_top = 267.0
+offset_right = 275.0
+offset_bottom = 307.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.717647, 0.666667, 0.556863, 1)
+theme_override_font_sizes/font_size = 12
+text = "Build heavy hits without extra speed."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Rank" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 18.0
+offset_top = 315.0
+offset_right = 272.0
+offset_bottom = 344.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.901961, 0.435294, 0.309804, 1)
+theme_override_font_sizes/font_size = 12
+text = "TRAINING LEVEL 1 / 9"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ActionPanel" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 37.0
+offset_top = 354.0
+offset_right = 253.0
+offset_bottom = 391.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_action")
+
+[node name="Action" type="Label" parent="ActionPanel"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.901961, 0.435294, 0.309804, 1)
+theme_override_font_sizes/font_size = 13
+text = "BEGIN TRAINING"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RestingAction" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 37.0
+offset_top = 354.0
+offset_right = 253.0
+offset_bottom = 391.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.717647, 0.666667, 0.556863, 0.72)
+theme_override_font_sizes/font_size = 12
+text = "CHOOSE"
+horizontal_alignment = 1
+vertical_alignment = 1
