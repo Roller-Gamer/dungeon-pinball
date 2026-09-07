@@ -3081,6 +3081,8 @@ func _upgrade_card_rect(index: int) -> Rect2:
 	var delay := float(index) * 0.10
 	var appear := clampf((upgrade_selection_timer - delay) / 0.34, 0.0, 1.0)
 	appear = 1.0 - pow(1.0 - appear, 3.0)
+	if upgrade_reward_kind == "EQUIPMENT":
+		return Rect2(205.0 + float(index) * 345.0, 225.0 + (1.0 - appear) * 150.0, 320.0, 470.0)
 	return Rect2(245.0 + float(index) * 315.0, 235.0 + (1.0 - appear) * 150.0, 290.0, 410.0)
 
 
@@ -4567,28 +4569,151 @@ func _draw_starting_style_icon(id: String, center: Vector2, color: Color) -> voi
 
 func _draw_upgrade_selection() -> void:
 	var reveal := clampf(upgrade_selection_timer / 0.26, 0.0, 1.0)
-	draw_rect(Rect2(Vector2.ZERO, SCREEN), Color("070806", 0.82 * reveal), true)
-	for glow_index in range(5, 0, -1):
-		var glow_radius := float(glow_index) * 85.0
-		draw_circle(Vector2(720, 166), glow_radius, Color(GOLD, reveal * (0.006 + float(6 - glow_index) * 0.004)))
+	var is_training := upgrade_reward_kind == "LEVEL_UP"
+	if is_training:
+		draw_rect(Rect2(Vector2.ZERO, SCREEN), Color("070806", 0.82 * reveal), true)
+		for glow_index in range(5, 0, -1):
+			var glow_radius := float(glow_index) * 85.0
+			draw_circle(Vector2(720, 166), glow_radius, Color(GOLD, reveal * (0.006 + float(6 - glow_index) * 0.004)))
+	else:
+		_draw_treasure_vault_backdrop(reveal)
 	var reward_title := "CHOOSE YOUR SPOILS"
-	var reward_subtitle := "Equip a new item or forge one you already carry"
-	if upgrade_reward_kind == "LEVEL_UP":
+	var reward_subtitle := "One prize may leave the vault with you"
+	if is_training:
 		reward_title = "CHOOSE BATTLE TRAINING"
 		reward_subtitle = "Level-ups improve the warrior; equipment remains separate"
 	var rest_text := "REST +%d HP" % last_room_heal if room_clear_resolution_pending and last_room_heal > 0 else ("REST • HEALTH FULL" if room_clear_resolution_pending else "TRAINING EARNED IN BATTLE")
-	var heading := "LEVEL %d" % hero_level if upgrade_reward_kind == "LEVEL_UP" else "STAGE  1-%d  CLEARED  •  TREASURE" % stage_room
+	var heading := "LEVEL %d" % hero_level if is_training else "STAGE  1-%d  CLEARED  •  TREASURE VAULT" % stage_room
 	_text_center(Vector2(0, 100), SCREEN.x, heading, 17, Color(PARCHMENT, reveal))
 	_text_center(Vector2(0, 151), SCREEN.x, reward_title, 34, Color("fff1c8", reveal))
-	var next_text := "  •  NEXT: STAGE 1-%d" % (stage_room + 1) if upgrade_reward_kind != "LEVEL_UP" else ("  •  %d TRAINING LEFT" % pending_level_ups if pending_level_ups > 0 else "")
+	var next_text := "  •  NEXT: STAGE 1-%d" % (stage_room + 1) if not is_training else ("  •  %d TRAINING LEFT" % pending_level_ups if pending_level_ups > 0 else "")
 	_text_center(Vector2(0, 184), SCREEN.x, "%s  •  %s%s" % [reward_subtitle, rest_text, next_text], 13, Color(MUTED, reveal))
 	draw_line(Vector2(445, 204), Vector2(995, 204), Color(BRONZE, 0.66 * reveal), 2.0)
 
 	for index in upgrade_choices.size():
-		_draw_upgrade_card(index, upgrade_choices[index], _upgrade_card_rect(index))
+		if is_training:
+			_draw_upgrade_card(index, upgrade_choices[index], _upgrade_card_rect(index))
+		else:
+			_draw_equipment_offer(index, upgrade_choices[index], _upgrade_card_rect(index))
 
-	_text_center(Vector2(0, 698), SCREEN.x, "CLICK A CARD  •  OR PRESS 1 / 2 / 3", 14, Color(PARCHMENT, reveal))
-	_text_center(Vector2(0, 733), SCREEN.x, "Training raises base stats; treasure changes combat mechanisms" if upgrade_reward_kind == "LEVEL_UP" else "Equipment occupies a dedicated weapon, armor, or relic slot", 11, Color(MUTED, reveal * 0.82))
+	_text_center(Vector2(0, 698 if is_training else 720), SCREEN.x, "CLICK A TRAINING CARD  •  OR PRESS 1 / 2 / 3" if is_training else "CLICK AN ITEM  •  OR PRESS 1 / 2 / 3", 14, Color(PARCHMENT, reveal))
+	_text_center(Vector2(0, 733 if is_training else 755), SCREEN.x, "Training raises the warrior's base statistics" if is_training else "Items occupy weapon, armor, or relic slots and change combat mechanisms", 11, Color(MUTED, reveal * 0.82))
+
+
+func _draw_treasure_vault_backdrop(reveal: float) -> void:
+	draw_rect(Rect2(Vector2.ZERO, SCREEN), Color("070604", 0.90 * reveal), true)
+	draw_rect(Rect2(120, 74, 1200, 626), Color("17130f", 0.96 * reveal), true)
+	draw_rect(Rect2(120, 74, 1200, 626), Color(BRONZE, 0.34 * reveal), false, 3.0)
+	# Large masonry blocks make this read as a room rather than another card menu.
+	for row in 5:
+		var block_y := 82.0 + float(row) * 104.0
+		var offset := 76.0 if row % 2 == 1 else 0.0
+		for column in 8:
+			var block_rect := Rect2(128.0 + float(column) * 150.0 - offset, block_y, 140.0, 94.0)
+			draw_rect(block_rect, Color("24201a", 0.46 * reveal), false, 1.0)
+	for offer_index in 3:
+		var center_x := 365.0 + float(offer_index) * 345.0
+		var light_beam := PackedVector2Array([
+			Vector2(center_x - 34.0, 205.0),
+			Vector2(center_x + 34.0, 205.0),
+			Vector2(center_x + 140.0, 605.0),
+			Vector2(center_x - 140.0, 605.0),
+		])
+		draw_colored_polygon(light_beam, Color(GOLD, 0.025 * reveal))
+	draw_rect(Rect2(120, 608, 1200, 92), Color("0d0b09", 0.90 * reveal), true)
+	for plank_index in 8:
+		var plank_x := 130.0 + float(plank_index) * 148.0
+		draw_line(Vector2(plank_x, 610), Vector2(plank_x - 30.0, 698), Color("33251b", 0.44 * reveal), 2.0)
+	draw_line(Vector2(120, 608), Vector2(1320, 608), Color(BRONZE, 0.55 * reveal), 3.0)
+
+
+func _equipment_offer_label(upgrade: Dictionary) -> String:
+	var type_text := String(upgrade.type)
+	var slot := "RELIC"
+	if type_text.begins_with("WEAPON"):
+		slot = "WEAPON"
+	elif type_text.begins_with("ARMOR"):
+		slot = "ARMOR"
+	var treatment := "FORGE UPGRADE"
+	if type_text.contains("NEW EQUIPMENT"):
+		treatment = "NEW FIND"
+	elif type_text.contains("ENCHANTMENT"):
+		treatment = "ENCHANTMENT"
+	return "%s  •  %s" % [slot, treatment]
+
+
+func _draw_equipment_offer(index: int, upgrade: Dictionary, rect: Rect2) -> void:
+	var id := String(upgrade.id)
+	var accent := Color(String(upgrade.color))
+	var is_hovered := index == upgrade_hover_index and upgrade_selected_index < 0
+	var is_selected := index == upgrade_selected_index
+	var pulse := 0.5 + 0.5 * sin(upgrade_selection_timer * 14.0)
+	var lift := -7.0 if is_hovered else 0.0
+	if is_selected:
+		lift = -10.0 - pulse * 3.0
+	var item_center := Vector2(rect.position.x + rect.size.x * 0.5, rect.position.y + 104.0 + lift)
+
+	# An isolated spotlight, cast shadow and physical plinth sell this as an
+	# object in the world instead of artwork printed on a rectangular card.
+	var beam := PackedVector2Array([
+		Vector2(item_center.x - 28.0, rect.position.y - 18.0),
+		Vector2(item_center.x + 28.0, rect.position.y - 18.0),
+		Vector2(item_center.x + 112.0, rect.position.y + 236.0),
+		Vector2(item_center.x - 112.0, rect.position.y + 236.0),
+	])
+	draw_colored_polygon(beam, Color(accent, 0.045 if is_hovered or is_selected else 0.018))
+	draw_set_transform(Vector2(item_center.x, rect.position.y + 214.0), 0.0, Vector2(1.75, 0.36))
+	draw_circle(Vector2.ZERO, 45.0, Color("030302", 0.54))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if is_hovered or is_selected:
+		for aura_index in range(3, 0, -1):
+			draw_circle(item_center, 49.0 + float(aura_index) * 10.0, Color(accent, 0.018 + pulse * 0.008))
+	var icon_scale := 1.24
+	if id in ["throwing_axe", "axe_damage", "axe_count", "axe_cooldown", "returning_axe"]:
+		icon_scale = 1.46
+	if is_hovered or is_selected:
+		icon_scale += 0.10
+	draw_set_transform(item_center, -0.03 if is_hovered else 0.0, Vector2.ONE * icon_scale)
+	_draw_reward_icon(id, Vector2.ZERO, accent, false)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	var top_y := rect.position.y + 218.0
+	var plinth_top := PackedVector2Array([
+		Vector2(rect.position.x + 35.0, top_y),
+		Vector2(rect.end.x - 35.0, top_y),
+		Vector2(rect.end.x - 18.0, top_y + 26.0),
+		Vector2(rect.position.x + 18.0, top_y + 26.0),
+	])
+	draw_colored_polygon(plinth_top, Color("554739"))
+	draw_polyline(plinth_top, accent.lightened(0.14) if is_hovered or is_selected else Color("8a704f"), 3.0, true)
+	draw_rect(Rect2(rect.position + Vector2(54, 244), Vector2(rect.size.x - 108, 35)), Color("28221c"), true)
+	draw_rect(Rect2(rect.position + Vector2(42, 278), Vector2(rect.size.x - 84, 9)), Color("786044"), true)
+	draw_rect(Rect2(rect.position + Vector2(30, 287), Vector2(rect.size.x - 60, 9)), Color("302820"), true)
+
+	var number_medallion := Vector2(rect.position.x + 31.0, rect.position.y + 261.5)
+	draw_circle(number_medallion, 15.0, Color("1a1510"))
+	draw_arc(number_medallion, 15.0, 0.0, TAU, 24, accent, 2.0, true)
+	_text_center(Vector2(number_medallion.x - 15.0, number_medallion.y + 5.5), 30.0, "%d" % (index + 1), 13, Color("fff1c8"))
+	_text_center(Vector2(rect.position.x + 38.0, rect.position.y + 266.0), rect.size.x - 76.0, _equipment_offer_label(upgrade), 12, Color(accent, 0.94))
+
+	_text_center(Vector2(rect.position.x + 8.0, rect.position.y + 332.0), rect.size.x - 16.0, String(upgrade.name), 21, Color("fff1c8"))
+	var tag_rect := Rect2(rect.position + Vector2(18, 349), Vector2(rect.size.x - 36, 62))
+	draw_rect(tag_rect, Color("211810e6"), true)
+	draw_rect(tag_rect, Color(BRONZE, 0.70), false, 2.0)
+	_text_center(Vector2(tag_rect.position.x + 8.0, tag_rect.position.y + 25.0), tag_rect.size.x - 16.0, String(upgrade.line_1), 12, Color("f0ddbc"))
+	_text_center(Vector2(tag_rect.position.x + 8.0, tag_rect.position.y + 48.0), tag_rect.size.x - 16.0, String(upgrade.line_2), 11, MUTED)
+
+	var shown_level := int(upgrade_levels.get(id, 0))
+	if not is_selected:
+		shown_level += 1
+	var rank_text := "NEW EQUIPMENT" if String(upgrade.type).contains("NEW EQUIPMENT") else "RANK %d / %d" % [shown_level, int(upgrade.max_level)]
+	_text_center(Vector2(rect.position.x + 24.0, rect.position.y + 429.0), rect.size.x - 48.0, rank_text, 11, Color(accent, 0.92))
+	var action_text := "TAKEN" if is_selected else ("TAKE ITEM" if is_hovered else "INSPECT")
+	_text_center(Vector2(rect.position.x + 24.0, rect.position.y + 456.0), rect.size.x - 48.0, action_text, 13, Color("fff7d6") if is_selected else accent)
+	if is_selected:
+		draw_arc(item_center, 78.0 + pulse * 5.0, 0.0, TAU, 48, Color(accent, 0.72), 3.0, true)
+	if upgrade_selected_index >= 0 and not is_selected:
+		draw_rect(rect.grow(4.0), Color("060504a6"), true)
 
 
 func _draw_upgrade_card(index: int, upgrade: Dictionary, rect: Rect2) -> void:
@@ -4630,9 +4755,10 @@ func _draw_upgrade_card(index: int, upgrade: Dictionary, rect: Rect2) -> void:
 		draw_rect(card_rect, Color("090a08a6"), true)
 
 
-func _draw_reward_icon(id: String, center: Vector2, color: Color) -> void:
-	draw_circle(center, 46.0, Color(color, 0.08))
-	draw_arc(center, 43.0, 0.0, TAU, 42, Color(color, 0.52), 2.0, true)
+func _draw_reward_icon(id: String, center: Vector2, color: Color, show_frame: bool = true) -> void:
+	if show_frame:
+		draw_circle(center, 46.0, Color(color, 0.08))
+		draw_arc(center, 43.0, 0.0, TAU, 42, Color(color, 0.52), 2.0, true)
 	match id:
 		"sharpened_blade":
 			draw_line(center + Vector2(-19, 24), center + Vector2(15, -19), Color("fff1c8"), 7.0, true)

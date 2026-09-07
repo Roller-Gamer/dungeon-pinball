@@ -3,3 +3,4 @@
 *.log
 *.tmp
 /Braveball Prototype.*
+/docs/*.import
