@@ -247,6 +247,7 @@ var passive_expected_hp := HERO_MAX_HP
 var upgrade_preview_mode := false
 var mechanism_preview_mode := false
 var training_preview_mode := false
+var room_preview_number := 0
 var effects_preview_mode := false
 var mage_preview_mode := false
 var boss_preview_mode := false
@@ -324,6 +325,9 @@ func _ready() -> void:
 	upgrade_preview_mode = "--upgrade-preview" in command_line
 	mechanism_preview_mode = "--mechanism-preview" in command_line
 	training_preview_mode = "--training-preview" in command_line
+	for argument in command_line:
+		if argument.begins_with("--room-preview="):
+			room_preview_number = clampi(int(argument.get_slice("=", 1)), 1, FINAL_ROOM)
 	effects_preview_mode = "--effects-preview" in command_line
 	mage_preview_mode = "--mage-preview" in command_line
 	boss_preview_mode = "--boss-preview" in command_line
@@ -367,6 +371,12 @@ func _ready() -> void:
 			_upgrade_definition("windrunner_boots"),
 			_upgrade_definition("shield_training"),
 		])
+	elif room_preview_number > 0:
+		_select_starting_style(0)
+		stage_room = room_preview_number
+		wave = stage_room
+		_spawn_wave()
+		prepare_ball()
 	elif effects_preview_mode:
 		starting_style_selection_active = false
 		waiting_for_launch = false
@@ -403,8 +413,17 @@ func _upgrade_definition(id: String) -> Dictionary:
 	return {}
 
 
+func _map_wall_definition(id: String) -> Dictionary:
+	for wall in walls:
+		if String(wall.get("id", "")) == id:
+			return wall
+	return {}
+
+
 func _run_progression_test() -> void:
-	if enemies.size() != 5 or stage_room != 1 or current_bgm_id != "normal" or bgm_player == null or bgm_player.stream != bgm_normal_stream or not bgm_normal_stream.loop or not bgm_boss_stream.loop or _enemy_death_sfx_id(enemies[0]) != "elite" or _enemy_death_sfx_id(enemies[1]) != "grunt" or COMBAT_ART_UNLOCK_POOL.size() != 3 or COMBAT_ART_UPGRADE_POOL.size() != 12 or TRAINING_POOL.size() != 5 or _goblin_gate_active() or bumpers.size() != 2 or String(bumpers[0].id) != "momentum" or not diamond_deflectors.is_empty() or walls[10].a != Vector2(620, 285) or walls[11].a != Vector2(820, 285) or objective_mode != "purge" or exit_open:
+	var left_upper_bank := _map_wall_definition("left_upper_bank")
+	var right_upper_bank := _map_wall_definition("right_upper_bank")
+	if enemies.size() != 5 or stage_room != 1 or current_bgm_id != "normal" or bgm_player == null or bgm_player.stream != bgm_normal_stream or not bgm_normal_stream.loop or not bgm_boss_stream.loop or _enemy_death_sfx_id(enemies[0]) != "elite" or _enemy_death_sfx_id(enemies[1]) != "grunt" or COMBAT_ART_UNLOCK_POOL.size() != 3 or COMBAT_ART_UPGRADE_POOL.size() != 12 or TRAINING_POOL.size() != 5 or _goblin_gate_active() or bumpers.size() != 2 or String(bumpers[0].id) != "momentum" or not diamond_deflectors.is_empty() or left_upper_bank.is_empty() or left_upper_bank.a != Vector2(620, 285) or right_upper_bank.is_empty() or right_upper_bank.a != Vector2(820, 285) or objective_mode != "purge" or exit_open:
 		push_error("Progression test failed: invalid stage 1 setup")
 		_quit_test(2)
 		return
@@ -1183,86 +1202,17 @@ func _quit_test(exit_code: int) -> void:
 
 
 func _setup_table() -> void:
-	# The raised lower edges of this V-shaped gate are the only colliders. A
-	# straight centre shot is routed back down-left or down-right, while the broad
-	# side lanes remain open toward the upper enemies.
+	# Kept as an optional future room element; all Act I walls, triggers and
+	# encounters now come from editable room scenes under res://maps/rooms/.
 	gate_panels = [
 		{"a": Vector2(650, 382), "b": Vector2(720, 434)},
 		{"a": Vector2(720, 434), "b": Vector2(790, 382)},
 	]
-	walls = _classic_table_walls()
-
-	bumpers = [
-		{"id": "momentum", "name": "MOMENTUM  +30%", "pos": Vector2(460, 340), "radius": 22.0, "visual_radius": 27.0, "color": RUNE, "implemented": true, "activation_cooldown": 3.0, "cooldown": 0.0, "pulse": 0.0, "inside": false},
-		{"id": "war_cry", "name": "WAR CRY  +40%", "pos": Vector2(980, 340), "radius": 20.0, "visual_radius": 25.0, "color": Color("e46b4f"), "implemented": true, "activation_cooldown": 4.0, "cooldown": 0.0, "pulse": 0.0, "inside": false},
-	]
-	diamond_deflectors = [
-		{"id": "centre_diamond", "pos": Vector2(720, 425), "half_diagonal": 34.0, "thickness": 10.0, "restitution": 0.92, "cooldown": 0.0, "pulse": 0.0},
-	]
-
-	# These are floor trigger zones rather than physical bumpers. Entering one
-	# while Fury is full activates it without changing the ball's path.
-	skill_panels = [
-		{
-			"id": "guard",
-			"name": "GUARD",
-			"pos": Vector2(455, 570),
-			"radius": 25.0,
-			"color": GREEN,
-			"cooldown": 0.0,
-			"pulse": 0.0,
-			"inside": false,
-		},
-		{
-			"id": "charge",
-			"name": "CHARGE",
-			"pos": Vector2(985, 570),
-			"radius": 25.0,
-			"color": GOLD,
-			"cooldown": 0.0,
-			"pulse": 0.0,
-			"inside": false,
-		},
-	]
-
-
-func _classic_table_walls() -> Array[Dictionary]:
-	return [
-		{"a": Vector2(380, 105), "b": Vector2(470, 48)},
-		# A permanent opening in the back wall houses the objective exit. Its own
-		# portcullis collider closes the gap until the room target is defeated.
-		{"a": Vector2(470, 48), "b": Vector2(EXIT_GATE_LEFT, EXIT_GATE_Y)},
-		{"a": Vector2(EXIT_GATE_RIGHT, EXIT_GATE_Y), "b": Vector2(970, 48)},
-		{"a": Vector2(970, 48), "b": Vector2(1060, 105)},
-		{"a": Vector2(380, 105), "b": Vector2(380, 640)},
-		{"a": Vector2(1060, 105), "b": Vector2(1060, 640)},
-		# A lower, shallower start turns side-lane falls inward toward the
-		# flippers instead of continuing to funnel them into the outer drains.
-		{"a": Vector2(380, 640), "b": Vector2(505, 755)},
-		{"a": Vector2(1060, 640), "b": Vector2(935, 755)},
-		{"a": Vector2(505, 755), "b": Vector2(520, 835)},
-		{"a": Vector2(935, 755), "b": Vector2(920, 835)},
-		# The upper banks are rotated and placed diagonally below the small enemies.
-		# This keeps them visually separate from the enemy tokens and avoids making
-		# a narrow pocket between the captain and the back line.
-		{"a": Vector2(620, 285), "b": Vector2(560, 355), "friction": 0.24},
-		{"a": Vector2(820, 285), "b": Vector2(880, 355), "friction": 0.24},
-		# Lower slingshot guides.
-		{"a": Vector2(505, 625), "b": Vector2(585, 690), "friction": 0.30},
-		{"a": Vector2(935, 625), "b": Vector2(855, 690), "friction": 0.30},
-	]
-
-
-func _open_table_walls() -> Array[Dictionary]:
-	# New table templates share the safe cabinet and drain geometry but replace
-	# the old upper banks with their own central interaction.
-	var classic := _classic_table_walls()
-	var open_walls: Array[Dictionary] = []
-	for wall_index in range(10):
-		open_walls.append(classic[wall_index])
-	open_walls.append(classic[12])
-	open_walls.append(classic[13])
-	return open_walls
+	walls.clear()
+	bumpers.clear()
+	diamond_deflectors.clear()
+	mechanism_rotors.clear()
+	skill_panels.clear()
 
 
 func restart_run() -> void:
@@ -1570,124 +1520,71 @@ func _board_hover_info() -> Dictionary:
 
 func _spawn_wave() -> void:
 	enemies.clear()
-	_configure_room_layout()
+	var room_data := _load_room_data(stage_room)
+	if room_data.is_empty():
+		push_error("Unable to load editable room scene for stage 1-%d" % stage_room)
+		game_over = true
+		return
+	_apply_room_data(room_data)
 	_sync_bgm()
 	warlord_guard_rotation = 0.0
 	warlord_guard_hit_cooldown = 0.0
-	var hp_scale := 1.0 + float(wave - 1) * 0.16
-	if stage_room == FINAL_ROOM:
-		# The final arena replaces the upper captain and centre diamond with one
-		# warlord surrounded by the four familiar minion positions.
-		_add_enemy(Vector2(720, 395), 60.0, WARLORD_MAX_HP, "boss")
-		var warlord: Dictionary = enemies[-1]
-		warlord.is_warlord = true
-		warlord.base_attack = WARLORD_BASE_ATTACK
-		warlord.attack = WARLORD_BASE_ATTACK
-		warlord.rage_stacks = 0
-		_add_enemy(Vector2(540, 245), 28.0, int(18.0 * hp_scale), "mage")
-		enemies[-1].guard_slot = 0
-		_add_enemy(Vector2(900, 245), 28.0, int(18.0 * hp_scale), "mage")
-		enemies[-1].guard_slot = 1
-		_add_enemy(Vector2(510, 455), 25.0, int(20.0 * hp_scale), "soldier")
-		enemies[-1].guard_slot = 2
-		_add_enemy(Vector2(930, 455), 25.0, int(20.0 * hp_scale), "soldier")
-		enemies[-1].guard_slot = 3
-		_configure_room_objective()
-		_show_status("BOSS STAGE 1-9", 1.4)
-		return
-	if stage_room == 5:
-		# Ring Corridor I: fragile mages occupy the exposed side lanes while four
-		# melee soldiers hold the central island. The loop is useful, not empty.
-		_add_enemy(Vector2(455, 245), 27.0, int(18.0 * hp_scale), "mage")
-		_add_enemy(Vector2(985, 245), 27.0, int(18.0 * hp_scale), "mage")
-		_add_enemy(Vector2(650, 265), 26.0, int(23.0 * hp_scale), "soldier")
-		_add_enemy(Vector2(790, 265), 26.0, int(23.0 * hp_scale), "soldier")
-		_add_enemy(Vector2(625, 475), 26.0, int(22.0 * hp_scale), "soldier")
-		_add_enemy(Vector2(815, 475), 26.0, int(22.0 * hp_scale), "soldier")
-		_configure_room_objective()
-		_show_status("STAGE 1-5  RING CORRIDOR", 1.4)
-		return
-	if stage_room == 6:
-		# Ring Corridor II isolates the new armoured targets from the mage lesson:
-		# bank around the arch and strike the Orcs from above or beside them.
-		_add_enemy(Vector2(455, 245), 26.0, int(22.0 * hp_scale), "soldier")
-		_add_enemy(Vector2(985, 245), 26.0, int(22.0 * hp_scale), "soldier")
-		_add_enemy(Vector2(650, 265), 26.0, int(24.0 * hp_scale), "soldier")
-		_add_enemy(Vector2(790, 265), 26.0, int(24.0 * hp_scale), "soldier")
-		_add_enemy(Vector2(625, 475), 31.0, int(32.0 * hp_scale), "orc")
-		_add_enemy(Vector2(815, 475), 31.0, int(32.0 * hp_scale), "orc")
-		_configure_room_objective()
-		_show_status("STAGE 1-6  ARMOURED CORRIDOR", 1.4)
-		return
-	if stage_room == 7:
-		# The first Mechanism Hall teaches the moving bar with a readable all-melee
-		# formation before special enemy rules return in the following room.
-		_add_enemy(Vector2(720, 132), 46.0, int(50.0 * hp_scale), "boss")
-		_add_enemy(Vector2(490, 245), 25.0, int(22.0 * hp_scale), "soldier")
-		_add_enemy(Vector2(950, 245), 25.0, int(22.0 * hp_scale), "soldier")
-		_add_enemy(Vector2(530, 525), 25.0, int(22.0 * hp_scale), "soldier")
-		_add_enemy(Vector2(910, 525), 25.0, int(22.0 * hp_scale), "soldier")
-		_configure_room_objective()
-		_show_status("STAGE 1-7  MECHANISM HALL", 1.4)
-		return
-	if stage_room == 8:
-		# The second hall combines target priority with bank shots: remove the two
-		# mages early, then use the rotor to reach the Orcs' unguarded sides.
-		_add_enemy(Vector2(720, 132), 48.0, int(54.0 * hp_scale), "boss")
-		_add_enemy(Vector2(490, 245), 27.0, int(17.0 * hp_scale), "mage")
-		_add_enemy(Vector2(950, 245), 27.0, int(17.0 * hp_scale), "mage")
-		_add_enemy(Vector2(545, 525), 31.0, int(30.0 * hp_scale), "orc")
-		_add_enemy(Vector2(895, 525), 31.0, int(30.0 * hp_scale), "orc")
-		_configure_room_objective()
-		_show_status("STAGE 1-8  WAR MACHINE", 1.4)
-		return
-	_add_enemy(Vector2(720, 145), 52.0, int(68.0 * hp_scale), "boss")
-	var upper_kind := "mage" if stage_room >= 3 else "soldier"
-	var upper_hp := 18.0 if upper_kind == "mage" else 24.0
-	_add_enemy(Vector2(540, 245), 28.0, int(upper_hp * hp_scale), upper_kind)
-	_add_enemy(Vector2(900, 245), 28.0, int(upper_hp * hp_scale), upper_kind)
-	_add_enemy(Vector2(510, 455), 25.0, int(20.0 * hp_scale), "grunt")
-	_add_enemy(Vector2(930, 455), 25.0, int(20.0 * hp_scale), "grunt")
-	if stage_room == 3:
-		# Room 1-3 replaces the centre diamond with an extra melee target.
-		_add_enemy(Vector2(720, 395), 27.0, int(24.0 * hp_scale), "grunt")
-	_configure_room_objective()
-	_show_status("STAGE 1-%d" % stage_room, 1.4)
+	_show_status(String(room_data.status_text), 1.4)
 
 
-func _configure_room_objective() -> void:
+func _load_room_data(room_number: int) -> Dictionary:
+	var scene_path := "res://maps/rooms/stage_1_%d.tscn" % room_number
+	var resource := load(scene_path)
+	if not resource is PackedScene:
+		return {}
+	var room_scene := (resource as PackedScene).instantiate()
+	if not room_scene.has_method("collect_room_data"):
+		room_scene.free()
+		return {}
+	var room_data: Dictionary = room_scene.collect_room_data()
+	room_scene.free()
+	return room_data
+
+
+func _apply_room_data(room_data: Dictionary) -> void:
+	current_layout_id = String(room_data.get("layout_id", "classic"))
+	walls.clear()
+	for wall_data in room_data.get("walls", []):
+		walls.append(Dictionary(wall_data).duplicate(true))
+	bumpers.clear()
+	for rune_data in room_data.get("combat_runes", []):
+		bumpers.append(Dictionary(rune_data).duplicate(true))
+	diamond_deflectors.clear()
+	for diamond_data in room_data.get("diamonds", []):
+		diamond_deflectors.append(Dictionary(diamond_data).duplicate(true))
+	mechanism_rotors.clear()
+	for rotor_data in room_data.get("rotors", []):
+		mechanism_rotors.append(Dictionary(rotor_data).duplicate(true))
+	skill_panels.clear()
+	for skill_data in room_data.get("fury_skills", []):
+		skill_panels.append(Dictionary(skill_data).duplicate(true))
+
 	exit_open = false
 	exit_gate_flash = 0.0
-	objective_mode = "target"
-	objective_title = "DEFEAT THE ELITE"
-	for enemy in enemies:
-		enemy.objective_target = false
-	match stage_room:
-		1:
-			objective_mode = "purge"
-			objective_title = "DEFEAT ALL ENEMIES"
-		5:
-			objective_title = "DEFEAT BOTH HEXERS"
-			for enemy in enemies:
-				if String(enemy.kind) == "mage":
-					enemy.objective_target = true
-		6:
-			objective_title = "BREAK THE ORC VANGUARD"
-			for enemy in enemies:
-				if String(enemy.kind) == "orc":
-					enemy.objective_target = true
-		FINAL_ROOM:
-			objective_title = "DEFEAT THE WARLORD"
-			for enemy in enemies:
-				if bool(enemy.get("is_warlord", false)):
-					enemy.objective_target = true
-		_:
-			for enemy in enemies:
-				if String(enemy.kind) == "boss":
-					enemy.objective_target = true
-					break
-	# Malformed/debug rooms remain completable instead of spawning a locked exit.
+	objective_mode = String(room_data.get("objective_mode", "target"))
+	objective_title = String(room_data.get("objective_title", "DEFEAT THE ELITE"))
+	var hp_scale := 1.0 + float(wave - 1) * 0.16
+	for spawn_data in room_data.get("enemies", []):
+		var spawn := Dictionary(spawn_data)
+		var is_warlord := bool(spawn.get("is_warlord", false))
+		var base_hp := int(spawn.get("base_hp", 1))
+		var spawn_hp := base_hp if is_warlord else int(float(base_hp) * hp_scale)
+		_add_enemy(Vector2(spawn.pos), float(spawn.radius), spawn_hp, String(spawn.kind))
+		var enemy: Dictionary = enemies[-1]
+		enemy.objective_target = bool(spawn.get("objective_target", false))
+		enemy.guard_slot = int(spawn.get("guard_slot", -1))
+		if is_warlord:
+			enemy.is_warlord = true
+			enemy.base_attack = WARLORD_BASE_ATTACK
+			enemy.attack = WARLORD_BASE_ATTACK
+			enemy.rage_stacks = 0
 	if objective_mode == "target" and _living_objective_targets() == 0 and not enemies.is_empty():
+		# A partially edited room should remain completable while being iterated on.
 		enemies[0].objective_target = true
 
 
@@ -1707,66 +1604,6 @@ func _check_objective_completion() -> void:
 	screen_flash = maxf(screen_flash, 0.34)
 	_spawn_burst(Vector2(720.0, 82.0), GOLD, 24)
 	_show_status("OBJECTIVE COMPLETE  EXIT OPEN", 1.6)
-
-
-func _configure_room_layout() -> void:
-	diamond_deflectors.clear()
-	mechanism_rotors.clear()
-	current_layout_id = "classic"
-	walls = _classic_table_walls()
-	if stage_room in [2, 4]:
-		diamond_deflectors.append({
-			"id": "centre_diamond",
-			"pos": Vector2(720, 425),
-			"half_diagonal": 34.0,
-			"thickness": 10.0,
-			"restitution": 0.92,
-			"cooldown": 0.0,
-			"pulse": 0.0,
-		})
-	elif stage_room in [5, 6]:
-		current_layout_id = "ring"
-		walls = _open_table_walls()
-		# One broad inverted-U island creates two useful side lanes without an
-		# unreachable outer layer. The 78px breaks at the upper-left and upper-right
-		# are wide enough for the warrior to cross between the centre and each lane.
-		var ring_segments := [
-			[Vector2(575, 585), Vector2(550, 505)],
-			[Vector2(550, 505), Vector2(550, 345)],
-			[Vector2(550, 345), Vector2(555, 325)],
-			# Left crossover opening: (555, 325) -> (590, 255).
-			[Vector2(590, 255), Vector2(610, 215)],
-			[Vector2(610, 215), Vector2(650, 165)],
-			[Vector2(650, 165), Vector2(675, 155)],
-			# Central crown opening: (675, 155) -> (765, 155).
-			[Vector2(765, 155), Vector2(790, 165)],
-			[Vector2(790, 165), Vector2(830, 215)],
-			[Vector2(830, 215), Vector2(850, 255)],
-			# Right crossover opening: (850, 255) -> (885, 325).
-			[Vector2(885, 325), Vector2(890, 345)],
-			[Vector2(890, 345), Vector2(890, 505)],
-			[Vector2(890, 505), Vector2(865, 585)],
-		]
-		for segment in ring_segments:
-			walls.append({"a": segment[0], "b": segment[1], "friction": 0.10})
-	elif stage_room in [7, 8]:
-		current_layout_id = "mechanism"
-		walls = _open_table_walls()
-		# Corner banks feed misses back toward the slow central rotor.
-		walls.append({"a": Vector2(430, 170), "b": Vector2(555, 235), "friction": 0.16})
-		walls.append({"a": Vector2(1010, 170), "b": Vector2(885, 235), "friction": 0.16})
-		walls.append({"a": Vector2(430, 515), "b": Vector2(555, 465), "friction": 0.18})
-		walls.append({"a": Vector2(1010, 515), "b": Vector2(885, 465), "friction": 0.18})
-		mechanism_rotors.append({
-			"id": "hall_rotor",
-			"pos": Vector2(720, 370),
-			"half_length": 112.0,
-			"thickness": 22.0,
-			"angle": deg_to_rad(22.0 if stage_room == 7 else -28.0),
-			"angular_speed": 0.42 if stage_room == 7 else -0.55,
-			"restitution": 0.78,
-			"pulse": 0.0,
-		})
 
 
 func _add_enemy(pos: Vector2, radius: float, hp: int, kind: String) -> void:

@@ -1,0 +1,56 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://maps/map_room.gd" id="1_room"]
+[ext_resource type="PackedScene" path="res://maps/layouts/classic_layout.tscn" id="2_layout"]
+[ext_resource type="Script" path="res://maps/enemy_spawn.gd" id="3_enemy"]
+
+[node name="Stage1_9" type="Node2D"]
+script = ExtResource("1_room")
+layout_id = "classic"
+status_text = "BOSS STAGE 1-9"
+objective_title = "DEFEAT THE WARLORD"
+
+[node name="Layout" parent="." instance=ExtResource("2_layout")]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Warlord" type="Node2D" parent="Enemies"]
+position = Vector2(720, 395)
+script = ExtResource("3_enemy")
+enemy_kind = "boss"
+radius = 60.0
+base_hp = 150
+objective_target = true
+is_warlord = true
+
+[node name="LeftMage" type="Node2D" parent="Enemies"]
+position = Vector2(540, 245)
+script = ExtResource("3_enemy")
+enemy_kind = "mage"
+radius = 28.0
+base_hp = 18
+guard_slot = 0
+
+[node name="RightMage" type="Node2D" parent="Enemies"]
+position = Vector2(900, 245)
+script = ExtResource("3_enemy")
+enemy_kind = "mage"
+radius = 28.0
+base_hp = 18
+guard_slot = 1
+
+[node name="LeftSoldier" type="Node2D" parent="Enemies"]
+position = Vector2(510, 455)
+script = ExtResource("3_enemy")
+enemy_kind = "soldier"
+radius = 25.0
+base_hp = 20
+guard_slot = 2
+
+[node name="RightSoldier" type="Node2D" parent="Enemies"]
+position = Vector2(930, 455)
+script = ExtResource("3_enemy")
+enemy_kind = "soldier"
+radius = 25.0
+base_hp = 20
+guard_slot = 3

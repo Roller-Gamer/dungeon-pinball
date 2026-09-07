@@ -1,0 +1,59 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://maps/map_room.gd" id="1_room"]
+[ext_resource type="PackedScene" path="res://maps/layouts/ring_layout.tscn" id="2_layout"]
+[ext_resource type="Script" path="res://maps/enemy_spawn.gd" id="3_enemy"]
+
+[node name="Stage1_5" type="Node2D"]
+script = ExtResource("1_room")
+layout_id = "ring"
+status_text = "STAGE 1-5  RING CORRIDOR"
+objective_title = "DEFEAT BOTH HEXERS"
+
+[node name="Layout" parent="." instance=ExtResource("2_layout")]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="LeftHexer" type="Node2D" parent="Enemies"]
+position = Vector2(455, 245)
+script = ExtResource("3_enemy")
+enemy_kind = "mage"
+radius = 27.0
+base_hp = 18
+objective_target = true
+
+[node name="RightHexer" type="Node2D" parent="Enemies"]
+position = Vector2(985, 245)
+script = ExtResource("3_enemy")
+enemy_kind = "mage"
+radius = 27.0
+base_hp = 18
+objective_target = true
+
+[node name="UpperLeftSoldier" type="Node2D" parent="Enemies"]
+position = Vector2(650, 265)
+script = ExtResource("3_enemy")
+enemy_kind = "soldier"
+radius = 26.0
+base_hp = 23
+
+[node name="UpperRightSoldier" type="Node2D" parent="Enemies"]
+position = Vector2(790, 265)
+script = ExtResource("3_enemy")
+enemy_kind = "soldier"
+radius = 26.0
+base_hp = 23
+
+[node name="LowerLeftSoldier" type="Node2D" parent="Enemies"]
+position = Vector2(625, 475)
+script = ExtResource("3_enemy")
+enemy_kind = "soldier"
+radius = 26.0
+base_hp = 22
+
+[node name="LowerRightSoldier" type="Node2D" parent="Enemies"]
+position = Vector2(815, 475)
+script = ExtResource("3_enemy")
+enemy_kind = "soldier"
+radius = 26.0
+base_hp = 22

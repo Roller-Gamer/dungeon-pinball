@@ -1,0 +1,55 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://maps/map_room.gd" id="1_room"]
+[ext_resource type="PackedScene" path="res://maps/layouts/classic_layout.tscn" id="2_layout"]
+[ext_resource type="Script" path="res://maps/enemy_spawn.gd" id="3_enemy"]
+
+[node name="Stage1_3" type="Node2D"]
+script = ExtResource("1_room")
+layout_id = "classic"
+status_text = "STAGE 1-3"
+objective_title = "DEFEAT THE ELITE"
+
+[node name="Layout" parent="." instance=ExtResource("2_layout")]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="EliteCaptain" type="Node2D" parent="Enemies"]
+position = Vector2(720, 145)
+script = ExtResource("3_enemy")
+enemy_kind = "boss"
+radius = 52.0
+base_hp = 68
+objective_target = true
+
+[node name="UpperLeftMage" type="Node2D" parent="Enemies"]
+position = Vector2(540, 245)
+script = ExtResource("3_enemy")
+enemy_kind = "mage"
+radius = 28.0
+base_hp = 18
+
+[node name="UpperRightMage" type="Node2D" parent="Enemies"]
+position = Vector2(900, 245)
+script = ExtResource("3_enemy")
+enemy_kind = "mage"
+radius = 28.0
+base_hp = 18
+
+[node name="LowerLeftGoblin" type="Node2D" parent="Enemies"]
+position = Vector2(510, 455)
+script = ExtResource("3_enemy")
+radius = 25.0
+base_hp = 20
+
+[node name="LowerRightGoblin" type="Node2D" parent="Enemies"]
+position = Vector2(930, 455)
+script = ExtResource("3_enemy")
+radius = 25.0
+base_hp = 20
+
+[node name="CentreGoblin" type="Node2D" parent="Enemies"]
+position = Vector2(720, 395)
+script = ExtResource("3_enemy")
+radius = 27.0
+base_hp = 24
