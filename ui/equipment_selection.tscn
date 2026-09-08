@@ -205,7 +205,7 @@ offset_bottom = 740.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.941176, 0.866667, 0.737255, 1)
 theme_override_font_sizes/font_size = 14
-text = "CLICK AN ITEM  •  OR PRESS 1 / 2 / 3"
+text = "TAP / CLICK AN ITEM  •  OR PRESS 1 / 2 / 3"
 horizontal_alignment = 1
 vertical_alignment = 1
 

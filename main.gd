@@ -39,6 +39,7 @@ const FIELD_BOTTOM := 886.0
 const EXIT_GATE_LEFT := 645.0
 const EXIT_GATE_RIGHT := 795.0
 const EXIT_GATE_Y := 48.0
+const TOUCH_HINT_DURATION := 4.0
 
 const BALL_RADIUS := 14.0
 const BALL_VISUAL_SCALE := 1.12
@@ -198,6 +199,10 @@ var right_active := false
 var left_power_timer := 0.0
 var right_power_timer := 0.0
 var flipper_contact_lock := 0.0
+var touch_flipper_sides: Dictionary = {}
+var launch_touch_id := -1
+var touch_input_seen := false
+var touch_hint_timer := 0.0
 
 var energy := 0.0
 var charge_stage_active := false
@@ -633,6 +638,45 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: left click did not release ball straight down")
 		_quit_test(2)
 		return
+	prepare_ball()
+	var launch_touch := InputEventScreenTouch.new()
+	launch_touch.index = 20
+	launch_touch.pressed = true
+	launch_touch.position = Vector2(610.0, LAUNCH_Y)
+	_unhandled_input(launch_touch)
+	var launch_drag := InputEventScreenDrag.new()
+	launch_drag.index = 20
+	launch_drag.position = Vector2(830.0, LAUNCH_Y)
+	_unhandled_input(launch_drag)
+	launch_touch.pressed = false
+	launch_touch.position = launch_drag.position
+	_unhandled_input(launch_touch)
+	if waiting_for_launch or not ball_active or absf(ball_position.x - 830.0) > 0.01 or ball_velocity.y <= 0.0:
+		push_error("Progression test failed: touch drag did not place and release ball")
+		_quit_test(2)
+		return
+	var left_touch := InputEventScreenTouch.new()
+	left_touch.index = 21
+	left_touch.pressed = true
+	left_touch.position = Vector2(300.0, 700.0)
+	_unhandled_input(left_touch)
+	var right_touch := InputEventScreenTouch.new()
+	right_touch.index = 22
+	right_touch.pressed = true
+	right_touch.position = Vector2(1140.0, 700.0)
+	_unhandled_input(right_touch)
+	if not touch_flipper_sides.values().has(-1) or not touch_flipper_sides.values().has(1):
+		push_error("Progression test failed: simultaneous touch flippers")
+		_quit_test(2)
+		return
+	left_touch.pressed = false
+	right_touch.pressed = false
+	_unhandled_input(left_touch)
+	_unhandled_input(right_touch)
+	if not touch_flipper_sides.is_empty():
+		push_error("Progression test failed: touch flippers remained held after release")
+		_quit_test(2)
+		return
 	_debug_clear_stage()
 	if not enemies.is_empty() or wave_clear_timer < 0.0:
 		push_error("Progression test failed: K shortcut clear")
@@ -655,7 +699,10 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: equipment scene not presented")
 		_quit_test(2)
 		return
-	equipment_selection_ui.item_chosen.emit(0)
+	var equipment_touch := InputEventScreenTouch.new()
+	equipment_touch.index = 30
+	equipment_touch.pressed = true
+	equipment_selection_ui.get_node("%OfferOne").call("_on_gui_input", equipment_touch)
 	if blast_impact_level != 1 or upgrade_history.size() != 1:
 		push_error("Progression test failed: UI reward signal not applied")
 		_quit_test(2)
@@ -706,7 +753,10 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: training scene not presented")
 		_quit_test(2)
 		return
-	training_selection_ui.training_chosen.emit(0)
+	var training_touch := InputEventScreenTouch.new()
+	training_touch.index = 31
+	training_touch.pressed = true
+	training_selection_ui.get_node("%CardOne").call("_on_gui_input", training_touch)
 	if hero_level != 2 or hero_xp != 5 or pending_level_ups != 0 or upgrade_reward_kind != "LEVEL_UP" or absf(impact_coefficient - 1.10) > 0.001:
 		push_error("Progression test failed: training UI signal or queued level training")
 		_quit_test(2)
@@ -1216,6 +1266,7 @@ func _setup_table() -> void:
 
 
 func restart_run() -> void:
+	_clear_touch_inputs()
 	energy = 0.0
 	charge_stage_active = false
 	charge_fx_timer = 0.0
@@ -1325,6 +1376,7 @@ func restart_run() -> void:
 
 
 func prepare_ball() -> void:
+	_clear_touch_inputs()
 	ball_active = false
 	waiting_for_launch = true
 	ball_position = Vector2(launch_x, LAUNCH_Y)
@@ -1350,6 +1402,7 @@ func launch_ball() -> void:
 	if game_over or run_complete or upgrade_selection_active or starting_style_selection_active or not waiting_for_launch:
 		return
 	waiting_for_launch = false
+	launch_touch_id = -1
 	ball_active = true
 	ball_position = Vector2(launch_x, LAUNCH_Y)
 	# Placement chooses only the horizontal drop point. The first meaningful
@@ -1370,6 +1423,47 @@ func _set_launch_x(mouse_x: float) -> void:
 func _clear_board_hover() -> void:
 	board_hover_type = ""
 	board_hover_index = -1
+
+
+func _note_touch_input() -> void:
+	touch_input_seen = true
+	touch_hint_timer = TOUCH_HINT_DURATION
+
+
+func _clear_touch_inputs() -> void:
+	touch_flipper_sides.clear()
+	launch_touch_id = -1
+	left_active = false
+	right_active = false
+
+
+func _touch_flipper_active(side: int) -> bool:
+	for touch_index in touch_flipper_sides:
+		if int(touch_flipper_sides[touch_index]) == side:
+			return true
+	return false
+
+
+func _using_touch_prompts() -> bool:
+	return touch_input_seen or DisplayServer.is_touchscreen_available()
+
+
+func _portrait_orientation_blocked() -> bool:
+	if smoke_mode or passive_test_mode or progression_test_mode:
+		return false
+	var window_size := DisplayServer.window_get_size()
+	# Treat square browser embeds as unsupported too; a 4:3 tablet in landscape
+	# still has enough width for the fixed table and both status panels.
+	return float(window_size.x) < float(window_size.y) * 1.20
+
+
+func _sync_orientation_with_control_overlays(portrait_blocked: bool) -> void:
+	if not upgrade_selection_active:
+		return
+	if is_instance_valid(equipment_selection_ui):
+		equipment_selection_ui.visible = not portrait_blocked and upgrade_reward_kind == "EQUIPMENT"
+	if is_instance_valid(training_selection_ui):
+		training_selection_ui.visible = not portrait_blocked and upgrade_reward_kind == "LEVEL_UP"
 
 
 func _update_board_hover(mouse_position: Vector2) -> void:
@@ -1643,7 +1737,34 @@ func _add_enemy(pos: Vector2, radius: float, hp: int, kind: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Releases are accepted anywhere so rotating the device or opening an overlay
+	# can never leave a virtual flipper held down.
+	if event is InputEventScreenTouch:
+		var released_touch := event as InputEventScreenTouch
+		if not released_touch.pressed:
+			touch_flipper_sides.erase(released_touch.index)
+
+	if _portrait_orientation_blocked():
+		return
+
 	if starting_style_selection_active:
+		if event is InputEventScreenDrag:
+			var style_drag_position := (event as InputEventScreenDrag).position
+			starting_style_hover_direction = _starting_style_navigation_at_position(style_drag_position)
+			starting_style_confirm_hover = _starting_style_confirm_rect().has_point(style_drag_position)
+			queue_redraw()
+			return
+		if event is InputEventScreenTouch:
+			var style_touch_event := event as InputEventScreenTouch
+			_note_touch_input()
+			if style_touch_event.pressed:
+				if starting_style_selection_timer >= 0.22 and _starting_style_confirm_rect().has_point(style_touch_event.position):
+					_select_starting_style(starting_style_carousel_index)
+				else:
+					var touch_navigation_direction := _starting_style_navigation_at_position(style_touch_event.position)
+					if touch_navigation_direction != 0:
+						_rotate_starting_style(touch_navigation_direction)
+			return
 		if event is InputEventMouseMotion:
 			var style_mouse_position := (event as InputEventMouseMotion).position
 			starting_style_hover_direction = _starting_style_navigation_at_position(style_mouse_position)
@@ -1687,6 +1808,36 @@ func _unhandled_input(event: InputEvent) -> void:
 				_select_upgrade(int(selection_key.keycode - KEY_1))
 			return
 		# Both reward overlays own their mouse input as editable Control scenes.
+		return
+
+	if event is InputEventScreenTouch:
+		var touch_event := event as InputEventScreenTouch
+		_note_touch_input()
+		if game_over or run_complete:
+			if touch_event.pressed:
+				restart_run()
+			return
+		if waiting_for_launch:
+			if touch_event.pressed and launch_touch_id < 0:
+				launch_touch_id = touch_event.index
+				_set_launch_x(touch_event.position.x)
+				_update_board_hover(touch_event.position)
+			elif not touch_event.pressed and touch_event.index == launch_touch_id:
+				_set_launch_x(touch_event.position.x)
+				launch_touch_id = -1
+				launch_ball()
+			return
+		if touch_event.pressed and ball_active:
+			touch_flipper_sides[touch_event.index] = -1 if touch_event.position.x < SCREEN.x * 0.5 else 1
+			queue_redraw()
+		return
+
+	if event is InputEventScreenDrag:
+		var touch_drag := event as InputEventScreenDrag
+		_note_touch_input()
+		if waiting_for_launch and touch_drag.index == launch_touch_id:
+			_set_launch_x(touch_drag.position.x)
+			_update_board_hover(touch_drag.position)
 		return
 
 	if waiting_for_launch and event is InputEventMouseMotion:
@@ -1744,13 +1895,21 @@ func _debug_clear_stage() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	var portrait_blocked := _portrait_orientation_blocked()
+	_sync_orientation_with_control_overlays(portrait_blocked)
 	var previous_left_active := left_active
 	var previous_right_active := right_active
-	left_active = Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT)
-	right_active = Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)
+	left_active = Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT) or _touch_flipper_active(-1)
+	right_active = Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT) or _touch_flipper_active(1)
 	if upgrade_selection_active or starting_style_selection_active or run_complete:
 		left_active = false
 		right_active = false
+	if portrait_blocked:
+		_clear_touch_inputs()
+		left_active = false
+		right_active = false
+		queue_redraw()
+		return
 
 	if smoke_mode:
 		smoke_frames += 1
@@ -1806,6 +1965,7 @@ func _physics_process(delta: float) -> void:
 	exit_gate_flash = maxf(0.0, exit_gate_flash - delta * 1.7)
 	left_power_timer = maxf(0.0, left_power_timer - delta)
 	right_power_timer = maxf(0.0, right_power_timer - delta)
+	touch_hint_timer = maxf(0.0, touch_hint_timer - delta)
 	charge_fx_timer = maxf(0.0, charge_fx_timer - delta)
 	dash_fx_timer = maxf(0.0, dash_fx_timer - delta)
 	might_timer = maxf(0.0, might_timer - delta)
@@ -2731,6 +2891,7 @@ func _ball_drained() -> void:
 	if enemy_phase_active or game_over:
 		return
 	ball_active = false
+	_clear_touch_inputs()
 	waiting_for_launch = false
 	trail.clear()
 	combo = 0
@@ -2809,6 +2970,7 @@ func _continue_room_clear_resolution() -> void:
 
 
 func _show_starting_style_selection() -> void:
+	_clear_touch_inputs()
 	starting_style_selection_active = true
 	starting_style_selection_timer = 0.0
 	starting_style_carousel_index = 0
@@ -2954,6 +3116,7 @@ func _show_level_up_selection() -> void:
 
 
 func _open_upgrade_selection(available: Array[Dictionary]) -> void:
+	_clear_touch_inputs()
 	upgrade_choices.clear()
 	available.shuffle()
 	for index in mini(3, available.size()):
@@ -3413,9 +3576,11 @@ func _draw() -> void:
 	_draw_playfield()
 	_draw_table_objects()
 	_draw_ball()
+	_draw_touch_controls()
 	_draw_overlay()
 	draw_set_transform(Vector2.ZERO)
 	_draw_damage_vignette()
+	_draw_orientation_notice()
 
 
 func _draw_damage_vignette() -> void:
@@ -3426,6 +3591,43 @@ func _draw_damage_vignette() -> void:
 		var inset := float(band) * 10.0
 		var alpha := damage_vignette * (0.070 - float(band) * 0.007)
 		draw_rect(Rect2(inset, inset, SCREEN.x - inset * 2.0, SCREEN.y - inset * 2.0), Color(RED, alpha), false, 12.0)
+
+
+func _draw_touch_controls() -> void:
+	if not ball_active or game_over or run_complete or upgrade_selection_active or starting_style_selection_active:
+		return
+	var show_hint := touch_hint_timer > 0.0
+	var left_pressed := _touch_flipper_active(-1)
+	var right_pressed := _touch_flipper_active(1)
+	if not show_hint and not left_pressed and not right_pressed:
+		return
+	var hint_alpha := minf(0.22, touch_hint_timer / TOUCH_HINT_DURATION * 0.22)
+	_draw_touch_control_hint(Vector2(455.0, 826.0), "LEFT", left_pressed, hint_alpha)
+	_draw_touch_control_hint(Vector2(985.0, 826.0), "RIGHT", right_pressed, hint_alpha)
+
+
+func _draw_touch_control_hint(center: Vector2, label: String, pressed: bool, hint_alpha: float) -> void:
+	var alpha := 0.34 if pressed else hint_alpha
+	if alpha <= 0.0:
+		return
+	draw_circle(center, 42.0, Color("65d5e8", alpha * 0.22))
+	draw_arc(center, 42.0, PI, TAU, 28, Color("d9f7fb", alpha), 3.0, true)
+	_text_center(Vector2(center.x - 54.0, center.y + 6.0), 108.0, label, 11, Color("e9fafb", alpha + 0.22))
+
+
+func _draw_orientation_notice() -> void:
+	if not _portrait_orientation_blocked():
+		return
+	draw_rect(Rect2(Vector2.ZERO, SCREEN), Color("090706f5"), true)
+	var notice := Rect2(420.0, 300.0, 600.0, 250.0)
+	draw_rect(notice.grow(8.0), WOOD_DARK, true)
+	draw_rect(notice, Color("2b2119"), true)
+	draw_rect(notice, BRONZE, false, 4.0)
+	draw_arc(Vector2(720.0, 385.0), 35.0, -PI * 0.75, PI * 0.55, 28, GOLD, 4.0, true)
+	draw_line(Vector2(746.0, 359.0), Vector2(758.0, 361.0), GOLD, 4.0, true)
+	draw_line(Vector2(746.0, 359.0), Vector2(750.0, 372.0), GOLD, 4.0, true)
+	_text_center(Vector2(notice.position.x, 458.0), notice.size.x, "ROTATE TO LANDSCAPE", 28, Color("fff2d0"))
+	_text_center(Vector2(notice.position.x, 500.0), notice.size.x, "Braveball is designed for a wide screen", 14, MUTED)
 
 
 func _draw_castle_background() -> void:
@@ -4303,8 +4505,10 @@ func _draw_overlay() -> void:
 		draw_rect(launch_box.grow(4), WOOD_DARK, true)
 		draw_rect(launch_box, Color("3b2b1edc"), true)
 		draw_rect(launch_box, BRONZE, false, 2.0)
-		_text_center(Vector2(launch_box.position.x, 723), launch_box.size.x, "MOVE MOUSE  -  CHOOSE START X", 13, Color(PARCHMENT, 0.92))
-		_text_center(Vector2(launch_box.position.x, 748), launch_box.size.x, "SPACE OR LEFT CLICK  -  DROP", 15, Color("fff2d0"))
+		var launch_position_prompt := "DRAG LEFT / RIGHT  -  CHOOSE START X" if _using_touch_prompts() else "MOVE MOUSE  -  CHOOSE START X"
+		var launch_action_prompt := "LIFT FINGER  -  DROP" if _using_touch_prompts() else "SPACE OR LEFT CLICK  -  DROP"
+		_text_center(Vector2(launch_box.position.x, 723), launch_box.size.x, launch_position_prompt, 13, Color(PARCHMENT, 0.92))
+		_text_center(Vector2(launch_box.position.x, 748), launch_box.size.x, launch_action_prompt, 15, Color("fff2d0"))
 		_draw_board_hover_tooltip()
 	if game_over:
 		var over_box := Rect2(475, 330, 490, 170)
@@ -4314,7 +4518,7 @@ func _draw_overlay() -> void:
 		_draw_corner_rivets(over_box)
 		_text(Vector2(593, 390), "THE HERO HAS FALLEN", 30, RED)
 		_text(Vector2(613, 438), "SCORE  %07d" % score, 20, Color("fff2d0"))
-		_text(Vector2(636, 476), "PRESS R TO RETRY", 15, MUTED)
+		_text(Vector2(604 if _using_touch_prompts() else 636, 476), "TAP SCREEN TO RETRY" if _using_touch_prompts() else "PRESS R TO RETRY", 15, MUTED)
 
 	if starting_style_selection_active:
 		_draw_starting_style_selection()
@@ -4354,7 +4558,8 @@ func _draw_starting_style_selection() -> void:
 	for index in STARTING_STYLES.size():
 		var dot_color := GOLD if index == starting_style_carousel_index else Color(BRONZE, 0.42)
 		draw_circle(Vector2(700.0 + float(index) * 20.0, 744.0), 4.5 if index == starting_style_carousel_index else 3.0, dot_color)
-	_text_center(Vector2(0, 775), SCREEN.x, "CLICK A SIDE BANNER OR USE A / D  •  ENTER TO CONFIRM", 13, Color(PARCHMENT, reveal))
+	var style_prompt := "TAP A SIDE BANNER  •  TAP THE CENTER BUTTON TO CONFIRM" if _using_touch_prompts() else "CLICK A SIDE BANNER OR USE A / D  •  ENTER TO CONFIRM"
+	_text_center(Vector2(0, 775), SCREEN.x, style_prompt, 13, Color(PARCHMENT, reveal))
 	_text_center(Vector2(0, 807), SCREEN.x, "Only direct warrior impacts trigger these innate abilities", 11, Color(MUTED, reveal * 0.82))
 
 
@@ -4411,7 +4616,7 @@ func _draw_starting_style_preview(style: Dictionary, rect: Rect2, direction: int
 	_draw_starting_style_icon(String(style.id), rect.position + Vector2(rect.size.x * 0.5, 101), Color(accent, alpha))
 	_text_center(Vector2(rect.position.x + 10, rect.position.y + 174), rect.size.x - 20, String(style.name), 17, Color("f5dfbd", alpha))
 	_text_center(Vector2(rect.position.x + 10, rect.position.y + 205), rect.size.x - 20, String(style.type), 10, Color(accent, alpha))
-	_text_center(Vector2(rect.position.x + 10, rect.position.y + 233), rect.size.x - 20, "CLICK TO VIEW", 10, Color(MUTED, alpha))
+	_text_center(Vector2(rect.position.x + 10, rect.position.y + 233), rect.size.x - 20, "TAP TO VIEW" if _using_touch_prompts() else "CLICK TO VIEW", 10, Color(MUTED, alpha))
 
 
 func _draw_starting_style_arrow(center: Vector2, direction: int, hovered: bool) -> void:
@@ -4460,7 +4665,7 @@ func _draw_run_complete() -> void:
 	var spoil_text := "NO SPOILS" if upgrade_history.is_empty() else "SPOIL:  %s" % upgrade_history[-1]
 	_text_center(Vector2(victory_box.position.x + 25, 455), victory_box.size.x - 50, spoil_text, 13, Color(PARCHMENT, 0.90))
 	_text_center(Vector2(victory_box.position.x, 501), victory_box.size.x, "SCORE  %07d" % score, 22, Color("fff4d6"))
-	_text_center(Vector2(victory_box.position.x, 548), victory_box.size.x, "PRESS R TO BEGIN A NEW RUN", 13, MUTED)
+	_text_center(Vector2(victory_box.position.x, 548), victory_box.size.x, "TAP SCREEN TO BEGIN A NEW RUN" if _using_touch_prompts() else "PRESS R TO BEGIN A NEW RUN", 13, MUTED)
 
 
 func _draw_medieval_panel(rect: Rect2) -> void:
