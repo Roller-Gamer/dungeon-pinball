@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://maps/map_room.gd" id="1_room"]
 [ext_resource type="PackedScene" path="res://maps/layouts/classic_layout.tscn" id="2_layout"]
 [ext_resource type="Script" path="res://maps/enemy_spawn.gd" id="3_enemy"]
-[ext_resource type="Script" path="res://maps/map_diamond.gd" id="4_diamond"]
+[ext_resource type="Script" path="res://maps/map_drop_target.gd" id="4_target"]
 
 [node name="Stage1_2" type="Node2D"]
 script = ExtResource("1_room")
@@ -13,12 +13,34 @@ objective_title = "DEFEAT THE ELITE"
 
 [node name="Layout" parent="." instance=ExtResource("2_layout")]
 
-[node name="CentreDiamond" type="Node2D" parent="."]
+[node name="TargetGate" type="Node2D" parent="."]
+
+[node name="LeftTarget" type="Node2D" parent="TargetGate"]
+position = Vector2(660, 425)
+script = ExtResource("4_target")
+target_id = "stage_1_2_left"
+group_id = "stage_1_2_gate"
+half_width = 26.0
+thickness = 13.0
+accent_color = Color(0.85098, 0.321569, 0.286275, 1)
+
+[node name="CentreTarget" type="Node2D" parent="TargetGate"]
 position = Vector2(720, 425)
-script = ExtResource("4_diamond")
-half_diagonal = 34.0
-thickness = 10.0
-restitution = 0.92
+script = ExtResource("4_target")
+target_id = "stage_1_2_centre"
+group_id = "stage_1_2_gate"
+half_width = 26.0
+thickness = 13.0
+accent_color = Color(0.917647, 0.47451, 0.286275, 1)
+
+[node name="RightTarget" type="Node2D" parent="TargetGate"]
+position = Vector2(780, 425)
+script = ExtResource("4_target")
+target_id = "stage_1_2_right"
+group_id = "stage_1_2_gate"
+half_width = 26.0
+thickness = 13.0
+accent_color = Color(0.85098, 0.321569, 0.286275, 1)
 
 [node name="Enemies" type="Node2D" parent="."]
 

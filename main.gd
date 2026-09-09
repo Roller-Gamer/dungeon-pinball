@@ -619,7 +619,7 @@ func _run_progression_test() -> void:
 	score = 0
 	particles.clear()
 	floating_text.clear()
-	var deflector_faces_reflected := 0
+	var gate_targets_dropped := 0
 	prepare_ball()
 	_update_board_hover(bumpers[0].pos)
 	var rune_hover_info := _board_hover_info()
@@ -715,7 +715,7 @@ func _run_progression_test() -> void:
 	for stage_two_enemy in enemies:
 		if String(stage_two_enemy.kind) == "soldier":
 			soldier_count += 1
-	if stage_room != 2 or enemies.size() != 5 or soldier_count != 2 or blast_impact_level != 1 or diamond_deflectors.size() != 1 or _goblin_gate_active():
+	if stage_room != 2 or enemies.size() != 5 or soldier_count != 2 or blast_impact_level != 1 or not diamond_deflectors.is_empty() or not rail_tracks.is_empty() or drop_targets.size() != 3 or _goblin_gate_active():
 		push_error("Progression test failed: stage 1-2 transition")
 		_quit_test(2)
 		return
@@ -773,24 +773,31 @@ func _run_progression_test() -> void:
 	pending_level_ups = 0
 	_spawn_wave()
 	prepare_ball()
-	var test_deflector: Dictionary = diamond_deflectors[0]
-	if Vector2(test_deflector.pos) != Vector2(720.0, 425.0) or absf(float(test_deflector.half_diagonal) - 34.0) > 0.01:
-		push_error("Progression test failed: compact lower diamond")
+	if _drop_group_progress("stage_1_2_gate") != Vector2i(0, 3):
+		push_error("Progression test failed: stage 1-2 target gate began lowered")
 		_quit_test(2)
 		return
-	var test_deflector_center: Vector2 = test_deflector.pos
-	var test_deflector_points := _diamond_deflector_points(test_deflector)
-	for edge_index in 4:
-		var edge_start: Vector2 = test_deflector_points[edge_index]
-		var edge_end: Vector2 = test_deflector_points[(edge_index + 1) % 4]
-		var midpoint := edge_start.lerp(edge_end, 0.5)
-		var outward := (midpoint - test_deflector_center).normalized()
-		ball_position = midpoint + outward * (_current_ball_radius() + float(test_deflector.thickness) * 0.5 - 0.5)
-		ball_velocity = -outward * 400.0
-		if _collide_segment(edge_start, edge_end, float(test_deflector.thickness), float(test_deflector.restitution), 0.02) and ball_velocity.dot(outward) > 0.0:
-			deflector_faces_reflected += 1
-	if deflector_faces_reflected != 4:
-		push_error("Progression test failed: stage 1-2 diamond reflected %d/4 faces" % deflector_faces_reflected)
+	_update_board_hover(Vector2(drop_targets[1].pos))
+	var gate_hover := _board_hover_info()
+	if board_hover_type != "drop_target" or not String(gate_hover.get("role", "")).contains("GATE SEAL"):
+		push_error("Progression test failed: stage 1-2 target hover info")
+		_quit_test(2)
+		return
+	for gate_target in drop_targets:
+		var target_segment := _drop_target_segment(gate_target)
+		var target_outward := (Vector2(target_segment.b) - Vector2(target_segment.a)).orthogonal().normalized()
+		ball_position = Vector2(gate_target.pos) + target_outward * (_current_ball_radius() + float(gate_target.thickness) * 0.5 - 0.5)
+		ball_velocity = -target_outward * 400.0
+		_collide_drop_targets()
+		if bool(gate_target.down) and ball_velocity.dot(target_outward) > 0.0:
+			gate_targets_dropped += 1
+	if gate_targets_dropped != 3 or _drop_group_progress("stage_1_2_gate") != Vector2i(3, 3):
+		push_error("Progression test failed: stage 1-2 target gate dropped %d/3" % gate_targets_dropped)
+		_quit_test(2)
+		return
+	prepare_ball()
+	if _drop_group_progress("stage_1_2_gate") != Vector2i(3, 3):
+		push_error("Progression test failed: stage 1-2 targets reset during the stage")
 		_quit_test(2)
 		return
 	explosions.clear()
@@ -972,7 +979,7 @@ func _run_progression_test() -> void:
 	var expected_mage_counts := {3: 2, 4: 2, 5: 2, 6: 0, 7: 0, 8: 2, 9: 2}
 	var expected_soldier_counts := {3: 0, 4: 0, 5: 4, 6: 4, 7: 4, 8: 0, 9: 2}
 	var expected_orc_counts := {3: 0, 4: 0, 5: 0, 6: 2, 7: 0, 8: 2, 9: 0}
-	var expected_layouts := {3: "classic", 4: "classic", 5: "ring", 6: "ring", 7: "rail_vault", 8: "mechanism", 9: "classic"}
+	var expected_layouts := {3: "classic", 4: "classic", 5: "ring", 6: "ring", 7: "mechanism", 8: "mechanism", 9: "classic"}
 	for expected_room in [3, 4, 5, 6, 7, 8, 9]:
 		_show_upgrade_selection()
 		if upgrade_reward_kind != "EQUIPMENT":
@@ -1007,9 +1014,9 @@ func _run_progression_test() -> void:
 		var expected_diamond_count := 1 if expected_room == 4 else 0
 		var expected_centre_melee := 1 if expected_room == 3 else 0
 		var expected_warlords := 1 if expected_room == FINAL_ROOM else 0
-		var expected_rotor_count := 1 if expected_room == 8 else 0
-		var expected_rail_count := 1 if expected_room == 7 else 0
-		var expected_drop_target_count := 3 if expected_room == 7 else 0
+		var expected_rotor_count := 1 if expected_room in [7, 8] else 0
+		var expected_rail_count := 0
+		var expected_drop_target_count := 0
 		if stage_room != expected_room or enemies.size() != int(expected_enemy_counts[expected_room]) or later_mages != int(expected_mage_counts[expected_room]) or later_soldiers != int(expected_soldier_counts[expected_room]) or later_orcs != int(expected_orc_counts[expected_room]) or later_warlords != expected_warlords or diamond_deflectors.size() != expected_diamond_count or mechanism_rotors.size() != expected_rotor_count or rail_tracks.size() != expected_rail_count or drop_targets.size() != expected_drop_target_count or current_layout_id != String(expected_layouts[expected_room]) or centre_melee_count != expected_centre_melee or _goblin_gate_active():
 			push_error("Progression test failed: room 1-%d layout/roster" % expected_room)
 			_quit_test(2)
@@ -1098,47 +1105,6 @@ func _run_progression_test() -> void:
 				push_error("Progression test failed: Orc guard damage=%d/%d timer=%.1f" % [guarded_orc_damage, broken_orc_damage, float(orc_enemy.guard_broken_timer)])
 				_quit_test(2)
 				return
-		elif expected_room == 7:
-			var vault_rail: Dictionary = rail_tracks[0]
-			if _rail_is_unlocked(vault_rail) or _drop_group_progress(String(vault_rail.lock_group)) != Vector2i(0, 3):
-				push_error("Progression test failed: Rail Vault began unlocked")
-				_quit_test(2)
-				return
-			blast_impact_cooldown = 1.0
-			throwing_axe_cooldown = 1.0
-			for vault_target in drop_targets:
-				var target_segment := _drop_target_segment(vault_target)
-				var target_outward := (Vector2(target_segment.b) - Vector2(target_segment.a)).orthogonal().normalized()
-				ball_position = Vector2(vault_target.pos) + target_outward * (_current_ball_radius() + float(vault_target.thickness) * 0.5 - 0.5)
-				ball_velocity = -target_outward * 400.0
-				_collide_drop_targets()
-				if not bool(vault_target.down) or ball_velocity.dot(target_outward) <= 0.0:
-					push_error("Progression test failed: Rail Vault target did not drop")
-					_quit_test(2)
-					return
-			if not _rail_is_unlocked(vault_rail) or _drop_group_progress(String(vault_rail.lock_group)) != Vector2i(3, 3):
-				push_error("Progression test failed: Rail Vault did not unlock")
-				_quit_test(2)
-				return
-			var vault_points := PackedVector2Array(vault_rail.points)
-			var entry_direction := (vault_points[1] - vault_points[0]).normalized()
-			ball_position = vault_points[0]
-			ball_velocity = entry_direction * 400.0
-			if not _try_enter_rail() or active_rail_index != 0:
-				push_error("Progression test failed: Rail Vault capture")
-				_quit_test(2)
-				return
-			_advance_active_rail(float(vault_rail.total_length) / float(vault_rail.travel_speed) + 0.1)
-			var exit_direction := (vault_points[vault_points.size() - 1] - vault_points[vault_points.size() - 2]).normalized()
-			if active_rail_index >= 0 or absf(ball_velocity.length() - 400.0) > 0.01 or ball_velocity.dot(exit_direction) <= 0.0:
-				push_error("Progression test failed: Rail Vault exit changed speed or direction")
-				_quit_test(2)
-				return
-			prepare_ball()
-			if not _rail_is_unlocked(vault_rail):
-				push_error("Progression test failed: drop targets reset during the stage")
-				_quit_test(2)
-				return
 		elif expected_room == FINAL_ROOM:
 			var warlord := _living_warlord()
 			if warlord.is_empty() or warlord.pos != Vector2(720, 395) or int(warlord.max_hp) != WARLORD_MAX_HP or int(warlord.attack) != WARLORD_BASE_ATTACK or _warlord_guard_count() != 4 or _enemy_death_sfx_id(warlord) != "boss" or current_bgm_id != "boss" or bgm_player.stream != bgm_boss_stream:
@@ -1190,7 +1156,7 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: final room completion")
 		_quit_test(2)
 		return
-	print("PROGRESSION_OK stage=1-%d layouts=classic,ring,rail,mechanism,boss rail=3-target-lock/speed-preserved objective=elite>exit xp=6/8/12/20/50 level_training=separate equipment=weapon/armor/relic impact=continuous heavy=%d orc_guard=90deg/full-block/4s/+25%% diamond_faces=%d styles=3 oath=%d fury=%.1f blast_targets=%d aftershock=follows axe_return=second-target shield_bash=+5 axes=%d cooldown_min=%.1f thorns=5 retort_targets=%d shield_gain=fractional retain=%d/%d warlord=150hp+15x4/rage60%% guards=4>0 direct=blocked arts=bypass bgm=normal>boss deaths=grunt/elite/boss" % [stage_room, heavy_damage, deflector_faces_reflected, IRON_OATH_SHIELD_PER_HIT, fury_gain, blast_targets_hit, 1 + axe_count_level, _impact_proc_cooldown(9), retort_targets_hit, first_retained_shield, second_retained_shield])
+	print("PROGRESSION_OK stage=1-%d layouts=classic,ring,mechanism,boss target_gate=1-2/3-persistent objective=elite>exit xp=6/8/12/20/50 level_training=separate equipment=weapon/armor/relic impact=continuous heavy=%d orc_guard=90deg/full-block/4s/+25%% styles=3 oath=%d fury=%.1f blast_targets=%d aftershock=follows axe_return=second-target shield_bash=+5 axes=%d cooldown_min=%.1f thorns=5 retort_targets=%d shield_gain=fractional retain=%d/%d warlord=150hp+15x4/rage60%% guards=4>0 direct=blocked arts=bypass bgm=normal>boss deaths=grunt/elite/boss" % [stage_room, heavy_damage, IRON_OATH_SHIELD_PER_HIT, fury_gain, blast_targets_hit, 1 + axe_count_level, _impact_proc_cooldown(9), retort_targets_hit, first_retained_shield, second_retained_shield])
 	for player in sfx_players:
 		player.stop()
 		player.stream = null
@@ -1656,9 +1622,9 @@ func _drop_target_hover_info(target: Dictionary) -> Dictionary:
 	var progress := _drop_group_progress(String(target.group_id))
 	var down := bool(target.down)
 	return {
-		"title": "DROPPED" if down else "VAULT SEAL",
-		"role": "DROP TARGET  /  RAIL LOCK",
-		"line_1": "Strike each seal to lower the physical gate.",
+		"title": "DROPPED" if down else "TARGET GATE",
+		"role": "DROP TARGET  /  GATE SEAL",
+		"line_1": "Strike this seal to lower the physical gate.",
 		"line_2": "GROUP PROGRESS  %d / %d" % [progress.x, progress.y],
 		"line_3": "Targets stay down until this stage ends.",
 		"color": GOLD if down else Color(target.accent_color),
@@ -2288,13 +2254,15 @@ func _hit_drop_target(target: Dictionary) -> void:
 	var group_id := String(target.group_id)
 	if not _drop_group_complete(group_id):
 		return
+	var unlocked_rail := false
 	for rail in rail_tracks:
 		if String(rail.lock_group) == group_id:
+			unlocked_rail = true
 			rail.unlock_pulse = 1.0
 			_spawn_burst(PackedVector2Array(rail.points)[0], Color(rail.accent_color), 14)
 	_play_sfx(SFX_GATE, -5.5, 1.08, 1.16)
 	screen_flash = maxf(screen_flash, 0.24)
-	_show_status("VAULT RAIL UNLOCKED", 1.15)
+	_show_status("VAULT RAIL UNLOCKED" if unlocked_rail else "TARGET GATE CLEARED", 1.15)
 
 
 func _drop_group_complete(group_id: String) -> bool:

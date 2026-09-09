@@ -20,9 +20,10 @@ Select a wall node and use the 2D move, rotate or scale tools. Its `End Offset`,
 
 Open a scene under `maps/rooms/` to move enemies and room-specific objects.
 Enemy nodes expose kind, radius, base HP, objective status and Boss guard slot.
-Rooms 1-2 and 1-4 own their diamond nodes; room 1-8 owns its rotor. Room 1-7
-uses the Rail Vault layout. Its `Line2D` points are directly editable in the 2D
-view, and each drop target exposes its lock group, size, hit count and rebound.
+Room 1-2 owns its three-node target gate, room 1-4 owns its diamond, and rooms
+1-7 and 1-8 own their rotor nodes. Each drop target exposes its group, size,
+hit count and rebound. The unused Rail Vault template remains available for a
+future room; its `Line2D` route is directly editable in the 2D view.
 
 Rails preserve the speed captured at their entrance and only redirect the ball
 along their authored route. A non-empty rail `Lock Group` opens when every drop

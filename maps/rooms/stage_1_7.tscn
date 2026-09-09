@@ -1,21 +1,31 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://maps/map_room.gd" id="1_room"]
-[ext_resource type="PackedScene" path="res://maps/layouts/rail_vault_layout.tscn" id="2_layout"]
+[ext_resource type="PackedScene" path="res://maps/layouts/mechanism_layout.tscn" id="2_layout"]
 [ext_resource type="Script" path="res://maps/enemy_spawn.gd" id="3_enemy"]
+[ext_resource type="Script" path="res://maps/map_rotor.gd" id="4_rotor"]
 
 [node name="Stage1_7" type="Node2D"]
 script = ExtResource("1_room")
-layout_id = "rail_vault"
-status_text = "STAGE 1-7  RAIL VAULT"
+layout_id = "mechanism"
+status_text = "STAGE 1-7  MECHANISM HALL"
 objective_title = "DEFEAT THE ELITE"
 
 [node name="Layout" parent="." instance=ExtResource("2_layout")]
 
+[node name="HallRotor" type="Node2D" parent="."]
+position = Vector2(720, 370)
+rotation = 0.383972
+script = ExtResource("4_rotor")
+half_length = 112.0
+thickness = 22.0
+angular_speed = 0.42
+restitution = 0.78
+
 [node name="Enemies" type="Node2D" parent="."]
 
 [node name="EliteCaptain" type="Node2D" parent="Enemies"]
-position = Vector2(720, 220)
+position = Vector2(720, 132)
 script = ExtResource("3_enemy")
 enemy_kind = "boss"
 radius = 46.0
@@ -23,28 +33,28 @@ base_hp = 50
 objective_target = true
 
 [node name="UpperLeftSoldier" type="Node2D" parent="Enemies"]
-position = Vector2(595, 315)
+position = Vector2(490, 245)
 script = ExtResource("3_enemy")
 enemy_kind = "soldier"
 radius = 25.0
 base_hp = 22
 
 [node name="UpperRightSoldier" type="Node2D" parent="Enemies"]
-position = Vector2(845, 315)
+position = Vector2(950, 245)
 script = ExtResource("3_enemy")
 enemy_kind = "soldier"
 radius = 25.0
 base_hp = 22
 
 [node name="LowerLeftSoldier" type="Node2D" parent="Enemies"]
-position = Vector2(535, 590)
+position = Vector2(530, 525)
 script = ExtResource("3_enemy")
 enemy_kind = "soldier"
 radius = 25.0
 base_hp = 22
 
 [node name="LowerRightSoldier" type="Node2D" parent="Enemies"]
-position = Vector2(905, 590)
+position = Vector2(910, 525)
 script = ExtResource("3_enemy")
 enemy_kind = "soldier"
 radius = 25.0
