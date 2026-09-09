@@ -167,6 +167,8 @@ var gate_panels: Array[Dictionary] = []
 var bumpers: Array[Dictionary] = []
 var diamond_deflectors: Array[Dictionary] = []
 var mechanism_rotors: Array[Dictionary] = []
+var rail_tracks: Array[Dictionary] = []
+var drop_targets: Array[Dictionary] = []
 var enemies: Array[Dictionary] = []
 var skill_panels: Array[Dictionary] = []
 var particles: Array[Dictionary] = []
@@ -179,6 +181,7 @@ var warlord_soul_streams: Array[Dictionary] = []
 var warlord_guard_rotation := 0.0
 var warlord_guard_hit_cooldown := 0.0
 var current_layout_id := "classic"
+var active_rail_index := -1
 var trail: Array[Vector2] = []
 
 var ball_position := Vector2(720.0, LAUNCH_Y)
@@ -969,7 +972,7 @@ func _run_progression_test() -> void:
 	var expected_mage_counts := {3: 2, 4: 2, 5: 2, 6: 0, 7: 0, 8: 2, 9: 2}
 	var expected_soldier_counts := {3: 0, 4: 0, 5: 4, 6: 4, 7: 4, 8: 0, 9: 2}
 	var expected_orc_counts := {3: 0, 4: 0, 5: 0, 6: 2, 7: 0, 8: 2, 9: 0}
-	var expected_layouts := {3: "classic", 4: "classic", 5: "ring", 6: "ring", 7: "mechanism", 8: "mechanism", 9: "classic"}
+	var expected_layouts := {3: "classic", 4: "classic", 5: "ring", 6: "ring", 7: "rail_vault", 8: "mechanism", 9: "classic"}
 	for expected_room in [3, 4, 5, 6, 7, 8, 9]:
 		_show_upgrade_selection()
 		if upgrade_reward_kind != "EQUIPMENT":
@@ -1004,8 +1007,10 @@ func _run_progression_test() -> void:
 		var expected_diamond_count := 1 if expected_room == 4 else 0
 		var expected_centre_melee := 1 if expected_room == 3 else 0
 		var expected_warlords := 1 if expected_room == FINAL_ROOM else 0
-		var expected_rotor_count := 1 if expected_room in [7, 8] else 0
-		if stage_room != expected_room or enemies.size() != int(expected_enemy_counts[expected_room]) or later_mages != int(expected_mage_counts[expected_room]) or later_soldiers != int(expected_soldier_counts[expected_room]) or later_orcs != int(expected_orc_counts[expected_room]) or later_warlords != expected_warlords or diamond_deflectors.size() != expected_diamond_count or mechanism_rotors.size() != expected_rotor_count or current_layout_id != String(expected_layouts[expected_room]) or centre_melee_count != expected_centre_melee or _goblin_gate_active():
+		var expected_rotor_count := 1 if expected_room == 8 else 0
+		var expected_rail_count := 1 if expected_room == 7 else 0
+		var expected_drop_target_count := 3 if expected_room == 7 else 0
+		if stage_room != expected_room or enemies.size() != int(expected_enemy_counts[expected_room]) or later_mages != int(expected_mage_counts[expected_room]) or later_soldiers != int(expected_soldier_counts[expected_room]) or later_orcs != int(expected_orc_counts[expected_room]) or later_warlords != expected_warlords or diamond_deflectors.size() != expected_diamond_count or mechanism_rotors.size() != expected_rotor_count or rail_tracks.size() != expected_rail_count or drop_targets.size() != expected_drop_target_count or current_layout_id != String(expected_layouts[expected_room]) or centre_melee_count != expected_centre_melee or _goblin_gate_active():
 			push_error("Progression test failed: room 1-%d layout/roster" % expected_room)
 			_quit_test(2)
 			return
@@ -1094,14 +1099,44 @@ func _run_progression_test() -> void:
 				_quit_test(2)
 				return
 		elif expected_room == 7:
-			var rotor: Dictionary = mechanism_rotors[0]
-			var rotor_segment := _mechanism_rotor_segment(rotor)
-			var rotor_midpoint: Vector2 = Vector2(rotor_segment.a).lerp(Vector2(rotor_segment.b), 0.5)
-			var rotor_outward: Vector2 = (Vector2(rotor_segment.b) - Vector2(rotor_segment.a)).orthogonal().normalized()
-			ball_position = rotor_midpoint + rotor_outward * (_current_ball_radius() + float(rotor.thickness) * 0.5 - 0.5)
-			ball_velocity = -rotor_outward * 400.0
-			if not _collide_segment(rotor_segment.a, rotor_segment.b, float(rotor.thickness), float(rotor.restitution), 0.08) or ball_velocity.dot(rotor_outward) <= 0.0:
-				push_error("Progression test failed: Mechanism Hall rotor collision")
+			var vault_rail: Dictionary = rail_tracks[0]
+			if _rail_is_unlocked(vault_rail) or _drop_group_progress(String(vault_rail.lock_group)) != Vector2i(0, 3):
+				push_error("Progression test failed: Rail Vault began unlocked")
+				_quit_test(2)
+				return
+			blast_impact_cooldown = 1.0
+			throwing_axe_cooldown = 1.0
+			for vault_target in drop_targets:
+				var target_segment := _drop_target_segment(vault_target)
+				var target_outward := (Vector2(target_segment.b) - Vector2(target_segment.a)).orthogonal().normalized()
+				ball_position = Vector2(vault_target.pos) + target_outward * (_current_ball_radius() + float(vault_target.thickness) * 0.5 - 0.5)
+				ball_velocity = -target_outward * 400.0
+				_collide_drop_targets()
+				if not bool(vault_target.down) or ball_velocity.dot(target_outward) <= 0.0:
+					push_error("Progression test failed: Rail Vault target did not drop")
+					_quit_test(2)
+					return
+			if not _rail_is_unlocked(vault_rail) or _drop_group_progress(String(vault_rail.lock_group)) != Vector2i(3, 3):
+				push_error("Progression test failed: Rail Vault did not unlock")
+				_quit_test(2)
+				return
+			var vault_points := PackedVector2Array(vault_rail.points)
+			var entry_direction := (vault_points[1] - vault_points[0]).normalized()
+			ball_position = vault_points[0]
+			ball_velocity = entry_direction * 400.0
+			if not _try_enter_rail() or active_rail_index != 0:
+				push_error("Progression test failed: Rail Vault capture")
+				_quit_test(2)
+				return
+			_advance_active_rail(float(vault_rail.total_length) / float(vault_rail.travel_speed) + 0.1)
+			var exit_direction := (vault_points[vault_points.size() - 1] - vault_points[vault_points.size() - 2]).normalized()
+			if active_rail_index >= 0 or absf(ball_velocity.length() - 400.0) > 0.01 or ball_velocity.dot(exit_direction) <= 0.0:
+				push_error("Progression test failed: Rail Vault exit changed speed or direction")
+				_quit_test(2)
+				return
+			prepare_ball()
+			if not _rail_is_unlocked(vault_rail):
+				push_error("Progression test failed: drop targets reset during the stage")
 				_quit_test(2)
 				return
 		elif expected_room == FINAL_ROOM:
@@ -1155,7 +1190,7 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: final room completion")
 		_quit_test(2)
 		return
-	print("PROGRESSION_OK stage=1-%d layouts=classic,ring,mechanism,boss objective=elite>exit xp=6/8/12/20/50 level_training=separate equipment=weapon/armor/relic impact=continuous heavy=%d orc_guard=90deg/full-block/4s/+25%% diamond_faces=%d styles=3 oath=%d fury=%.1f blast_targets=%d aftershock=follows axe_return=second-target shield_bash=+5 axes=%d cooldown_min=%.1f thorns=5 retort_targets=%d shield_gain=fractional retain=%d/%d warlord=150hp+15x4/rage60%% guards=4>0 direct=blocked arts=bypass bgm=normal>boss deaths=grunt/elite/boss" % [stage_room, heavy_damage, deflector_faces_reflected, IRON_OATH_SHIELD_PER_HIT, fury_gain, blast_targets_hit, 1 + axe_count_level, _impact_proc_cooldown(9), retort_targets_hit, first_retained_shield, second_retained_shield])
+	print("PROGRESSION_OK stage=1-%d layouts=classic,ring,rail,mechanism,boss rail=3-target-lock/speed-preserved objective=elite>exit xp=6/8/12/20/50 level_training=separate equipment=weapon/armor/relic impact=continuous heavy=%d orc_guard=90deg/full-block/4s/+25%% diamond_faces=%d styles=3 oath=%d fury=%.1f blast_targets=%d aftershock=follows axe_return=second-target shield_bash=+5 axes=%d cooldown_min=%.1f thorns=5 retort_targets=%d shield_gain=fractional retain=%d/%d warlord=150hp+15x4/rage60%% guards=4>0 direct=blocked arts=bypass bgm=normal>boss deaths=grunt/elite/boss" % [stage_room, heavy_damage, deflector_faces_reflected, IRON_OATH_SHIELD_PER_HIT, fury_gain, blast_targets_hit, 1 + axe_count_level, _impact_proc_cooldown(9), retort_targets_hit, first_retained_shield, second_retained_shield])
 	for player in sfx_players:
 		player.stop()
 		player.stream = null
@@ -1262,11 +1297,14 @@ func _setup_table() -> void:
 	bumpers.clear()
 	diamond_deflectors.clear()
 	mechanism_rotors.clear()
+	rail_tracks.clear()
+	drop_targets.clear()
 	skill_panels.clear()
 
 
 func restart_run() -> void:
 	_clear_touch_inputs()
+	active_rail_index = -1
 	energy = 0.0
 	charge_stage_active = false
 	charge_fx_timer = 0.0
@@ -1377,6 +1415,7 @@ func restart_run() -> void:
 
 func prepare_ball() -> void:
 	_clear_touch_inputs()
+	active_rail_index = -1
 	ball_active = false
 	waiting_for_launch = true
 	ball_position = Vector2(launch_x, LAUNCH_Y)
@@ -1492,6 +1531,21 @@ func _update_board_hover(mouse_position: Vector2) -> void:
 			board_hover_index = panel_index
 			queue_redraw()
 			return
+	for target_index in drop_targets.size():
+		var target: Dictionary = drop_targets[target_index]
+		if mouse_position.distance_to(target.pos) <= float(target.half_width) + 12.0:
+			board_hover_type = "drop_target"
+			board_hover_index = target_index
+			queue_redraw()
+			return
+	for rail_index in rail_tracks.size():
+		var rail: Dictionary = rail_tracks[rail_index]
+		var points := PackedVector2Array(rail.points)
+		if not points.is_empty() and mouse_position.distance_to(points[0]) <= float(rail.entrance_radius) + 14.0:
+			board_hover_type = "rail"
+			board_hover_index = rail_index
+			queue_redraw()
+			return
 	queue_redraw()
 
 
@@ -1598,6 +1652,37 @@ func _fury_skill_hover_info(panel: Dictionary) -> Dictionary:
 	return info
 
 
+func _drop_target_hover_info(target: Dictionary) -> Dictionary:
+	var progress := _drop_group_progress(String(target.group_id))
+	var down := bool(target.down)
+	return {
+		"title": "DROPPED" if down else "VAULT SEAL",
+		"role": "DROP TARGET  /  RAIL LOCK",
+		"line_1": "Strike each seal to lower the physical gate.",
+		"line_2": "GROUP PROGRESS  %d / %d" % [progress.x, progress.y],
+		"line_3": "Targets stay down until this stage ends.",
+		"color": GOLD if down else Color(target.accent_color),
+		"pos": Vector2(target.pos),
+		"radius": float(target.half_width),
+	}
+
+
+func _rail_hover_info(rail: Dictionary) -> Dictionary:
+	var unlocked := _rail_is_unlocked(rail)
+	var progress := _drop_group_progress(String(rail.lock_group))
+	var points := PackedVector2Array(rail.points)
+	return {
+		"title": "VAULT RAIL",
+		"role": "RAISED TRACK  /  %s" % ("OPEN" if unlocked else "LOCKED"),
+		"line_1": "Ride the full route above normal collisions.",
+		"line_2": "Exit direction changes; entry speed is preserved.",
+		"line_3": "Seal progress %d/%d." % [progress.x, progress.y],
+		"color": Color(rail.accent_color) if unlocked else Color("8d6655"),
+		"pos": points[0] if not points.is_empty() else Vector2.ZERO,
+		"radius": float(rail.entrance_radius),
+	}
+
+
 func _board_hover_info() -> Dictionary:
 	match board_hover_type:
 		"enemy":
@@ -1609,6 +1694,12 @@ func _board_hover_info() -> Dictionary:
 		"fury_skill":
 			if board_hover_index >= 0 and board_hover_index < skill_panels.size():
 				return _fury_skill_hover_info(skill_panels[board_hover_index])
+		"drop_target":
+			if board_hover_index >= 0 and board_hover_index < drop_targets.size():
+				return _drop_target_hover_info(drop_targets[board_hover_index])
+		"rail":
+			if board_hover_index >= 0 and board_hover_index < rail_tracks.size():
+				return _rail_hover_info(rail_tracks[board_hover_index])
 	return {}
 
 
@@ -1654,6 +1745,18 @@ func _apply_room_data(room_data: Dictionary) -> void:
 	mechanism_rotors.clear()
 	for rotor_data in room_data.get("rotors", []):
 		mechanism_rotors.append(Dictionary(rotor_data).duplicate(true))
+	rail_tracks.clear()
+	for rail_data in room_data.get("rails", []):
+		var rail := Dictionary(rail_data).duplicate(true)
+		rail.total_length = _polyline_length(PackedVector2Array(rail.get("points", PackedVector2Array())))
+		rail.travel_distance = 0.0
+		rail.captured_speed = 0.0
+		rail.riding = false
+		rail_tracks.append(rail)
+	drop_targets.clear()
+	for target_data in room_data.get("drop_targets", []):
+		drop_targets.append(Dictionary(target_data).duplicate(true))
+	active_rail_index = -1
 	skill_panels.clear()
 	for skill_data in room_data.get("fury_skills", []):
 		skill_panels.append(Dictionary(skill_data).duplicate(true))
@@ -1875,6 +1978,7 @@ func _debug_clear_stage() -> void:
 	if game_over or run_complete or upgrade_selection_active or starting_style_selection_active:
 		return
 	ball_active = false
+	active_rail_index = -1
 	waiting_for_launch = false
 	enemy_phase_active = false
 	enemy_phase_timer = 0.0
@@ -2003,6 +2107,14 @@ func _physics_process(delta: float) -> void:
 	for rotor in mechanism_rotors:
 		rotor.angle = fmod(float(rotor.angle) + float(rotor.angular_speed) * delta, TAU)
 		rotor.pulse = maxf(0.0, float(rotor.pulse) - delta * 3.5)
+	for rail in rail_tracks:
+		rail.cooldown = maxf(0.0, float(rail.cooldown) - delta)
+		rail.unlock_pulse = maxf(0.0, float(rail.unlock_pulse) - delta * 1.5)
+	for target in drop_targets:
+		target.cooldown = maxf(0.0, float(target.cooldown) - delta)
+		target.pulse = maxf(0.0, float(target.pulse) - delta * 3.8)
+		var target_drop := 1.0 if bool(target.down) else 0.0
+		target.drop_progress = move_toward(float(target.drop_progress), target_drop, delta * 5.5)
 	for panel in skill_panels:
 		panel.cooldown = maxf(0.0, panel.cooldown - delta)
 		panel.pulse = maxf(0.0, panel.pulse - delta * 2.5)
@@ -2048,6 +2160,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _simulate_ball(delta: float) -> void:
+	if active_rail_index >= 0:
+		_advance_active_rail(delta)
+		return
 	# Several substeps keep the small hero from tunnelling through targets at charge speed.
 	const SUBSTEPS := 4
 	var step := delta / float(SUBSTEPS)
@@ -2068,6 +2183,10 @@ func _simulate_ball(delta: float) -> void:
 		if _goblin_gate_active():
 			for gate_panel in gate_panels:
 				_collide_segment(gate_panel.a, gate_panel.b, 18.0, 0.72, 0.10, 0.0, "gate")
+
+		_collide_drop_targets()
+		if _try_enter_rail():
+			return
 
 		for deflector in diamond_deflectors:
 			var deflector_points := _diamond_deflector_points(deflector)
@@ -2132,6 +2251,155 @@ func _simulate_ball(delta: float) -> void:
 	_remove_dead_enemies()
 	if ball_position.y > FIELD_BOTTOM + 45.0:
 		_ball_drained()
+
+
+func _drop_target_segment(target: Dictionary) -> Dictionary:
+	var direction := Vector2.RIGHT.rotated(float(target.angle))
+	var half_width := float(target.half_width)
+	return {
+		"a": Vector2(target.pos) - direction * half_width,
+		"b": Vector2(target.pos) + direction * half_width,
+	}
+
+
+func _collide_drop_targets() -> void:
+	for target in drop_targets:
+		if bool(target.down):
+			continue
+		var segment := _drop_target_segment(target)
+		if not _collide_segment(segment.a, segment.b, float(target.thickness), float(target.restitution), 0.12):
+			continue
+		if float(target.cooldown) <= 0.0:
+			_hit_drop_target(target)
+
+
+func _hit_drop_target(target: Dictionary) -> void:
+	target.cooldown = 0.16
+	target.pulse = 1.0
+	target.hits_remaining = maxi(0, int(target.hits_remaining) - 1)
+	score += 35
+	_add_energy(3.0)
+	_spawn_burst(Vector2(target.pos), Color(target.accent_color), 7)
+	if int(target.hits_remaining) > 0:
+		_add_floating_text(Vector2(target.pos) + Vector2(-14.0, -25.0), "%d" % int(target.hits_remaining), Color(target.accent_color))
+		return
+	target.down = true
+	_add_floating_text(Vector2(target.pos) + Vector2(-24.0, -25.0), "DOWN", GOLD)
+	var group_id := String(target.group_id)
+	if not _drop_group_complete(group_id):
+		return
+	for rail in rail_tracks:
+		if String(rail.lock_group) == group_id:
+			rail.unlock_pulse = 1.0
+			_spawn_burst(PackedVector2Array(rail.points)[0], Color(rail.accent_color), 14)
+	_play_sfx(SFX_GATE, -5.5, 1.08, 1.16)
+	screen_flash = maxf(screen_flash, 0.24)
+	_show_status("VAULT RAIL UNLOCKED", 1.15)
+
+
+func _drop_group_complete(group_id: String) -> bool:
+	if group_id.is_empty():
+		return true
+	var found_target := false
+	for target in drop_targets:
+		if String(target.group_id) != group_id:
+			continue
+		found_target = true
+		if not bool(target.down):
+			return false
+	return found_target
+
+
+func _drop_group_progress(group_id: String) -> Vector2i:
+	var completed := 0
+	var total := 0
+	for target in drop_targets:
+		if String(target.group_id) == group_id:
+			total += 1
+			if bool(target.down):
+				completed += 1
+	return Vector2i(completed, total)
+
+
+func _rail_is_unlocked(rail: Dictionary) -> bool:
+	return String(rail.lock_group).is_empty() or _drop_group_complete(String(rail.lock_group))
+
+
+func _polyline_length(points: PackedVector2Array) -> float:
+	var length := 0.0
+	for point_index in range(1, points.size()):
+		length += points[point_index - 1].distance_to(points[point_index])
+	return length
+
+
+func _rail_sample(points: PackedVector2Array, distance: float) -> Dictionary:
+	if points.size() < 2:
+		return {"pos": Vector2.ZERO, "tangent": Vector2.DOWN}
+	var remaining := maxf(0.0, distance)
+	for point_index in range(1, points.size()):
+		var start := points[point_index - 1]
+		var finish := points[point_index]
+		var segment := finish - start
+		var segment_length := segment.length()
+		if segment_length <= 0.001:
+			continue
+		if remaining <= segment_length:
+			return {"pos": start + segment * (remaining / segment_length), "tangent": segment / segment_length}
+		remaining -= segment_length
+	var final_tangent := (points[points.size() - 1] - points[points.size() - 2]).normalized()
+	return {"pos": points[points.size() - 1], "tangent": final_tangent}
+
+
+func _try_enter_rail() -> bool:
+	for rail_index in rail_tracks.size():
+		var rail: Dictionary = rail_tracks[rail_index]
+		if float(rail.cooldown) > 0.0 or not _rail_is_unlocked(rail):
+			continue
+		var points := PackedVector2Array(rail.points)
+		if points.size() < 2:
+			continue
+		var entry_direction := (points[1] - points[0]).normalized()
+		if ball_velocity.dot(entry_direction) <= 20.0:
+			continue
+		if ball_position.distance_to(points[0]) > float(rail.entrance_radius) + _current_ball_radius():
+			continue
+		active_rail_index = rail_index
+		rail.riding = true
+		rail.travel_distance = 0.0
+		rail.captured_speed = ball_velocity.length()
+		ball_position = points[0]
+		ball_velocity = Vector2.ZERO
+		trail.clear()
+		_play_sfx(SFX_GATE, -7.0, 1.16, 1.24)
+		_spawn_burst(points[0], Color(rail.accent_color), 9)
+		_show_status("VAULT RAIL  SPEED PRESERVED", 0.78)
+		return true
+	return false
+
+
+func _advance_active_rail(delta: float) -> void:
+	if active_rail_index < 0 or active_rail_index >= rail_tracks.size():
+		active_rail_index = -1
+		return
+	var rail: Dictionary = rail_tracks[active_rail_index]
+	var points := PackedVector2Array(rail.points)
+	var total_length := float(rail.total_length)
+	rail.travel_distance = float(rail.travel_distance) + float(rail.travel_speed) * delta
+	var sample := _rail_sample(points, minf(float(rail.travel_distance), total_length))
+	ball_position = Vector2(sample.pos)
+	if float(rail.travel_distance) < total_length:
+		return
+	var exit_tangent := Vector2(sample.tangent)
+	var exit_speed := minf(_current_max_speed(), float(rail.captured_speed) * float(rail.exit_speed_multiplier))
+	ball_position += exit_tangent * (_current_ball_radius() + 7.0)
+	ball_velocity = exit_tangent * exit_speed
+	rail.riding = false
+	rail.cooldown = 0.55
+	rail.unlock_pulse = maxf(float(rail.unlock_pulse), 0.38)
+	active_rail_index = -1
+	_spawn_burst(ball_position, Color(rail.accent_color), 10)
+	shockwaves.append({"pos": ball_position, "life": 0.34, "max_life": 0.34, "color": Color(rail.accent_color)})
+	_play_sfx(SFX_GATE, -7.0, 1.22, 1.30)
 
 
 func _ball_entered_exit() -> bool:
@@ -3878,6 +4146,11 @@ func _draw_table_objects() -> void:
 		draw_circle(wall.a, 5.0, Color("d2a85d"))
 		draw_circle(wall.b, 5.0, Color("d2a85d"))
 
+	for rail in rail_tracks:
+		_draw_rail_track(rail)
+	for target in drop_targets:
+		_draw_drop_target(target)
+
 	if _goblin_gate_active():
 		_draw_goblin_gate()
 
@@ -4081,6 +4354,89 @@ func _draw_mechanism_rotor(rotor: Dictionary) -> void:
 	draw_arc(center, 14.0 + pulse * 2.0, 0.0, TAU, 24, Color("f0cf83"), 2.0, true)
 	for bolt_angle in [0.0, PI * 0.5, PI, PI * 1.5]:
 		draw_circle(center + Vector2.from_angle(bolt_angle) * 8.0, 2.0, Color("4a2f20"))
+
+
+func _draw_rail_track(rail: Dictionary) -> void:
+	var points := PackedVector2Array(rail.points)
+	if points.size() < 2:
+		return
+	var unlocked := _rail_is_unlocked(rail)
+	var accent := Color(rail.accent_color)
+	var rail_color := accent if unlocked else Color("6d5c50")
+	var total_length := float(rail.total_length)
+	# Cross ties make the route read as a raised track instead of another wall.
+	var tie_distance := 18.0
+	while tie_distance < total_length:
+		var tie_sample := _rail_sample(points, tie_distance)
+		var tie_center := Vector2(tie_sample.pos)
+		var tie_normal := Vector2(tie_sample.tangent).orthogonal()
+		draw_line(tie_center - tie_normal * 13.0, tie_center + tie_normal * 13.0, Color("100c09c8"), 8.0, true)
+		draw_line(tie_center - tie_normal * 11.0, tie_center + tie_normal * 11.0, WOOD.darkened(0.08), 4.5, true)
+		tie_distance += 38.0
+	draw_polyline(points, Color("090706dc"), 25.0, true)
+	draw_polyline(points, BRONZE.darkened(0.16), 18.0, true)
+	draw_polyline(points, Color("222826"), 10.0, true)
+	draw_polyline(points, Color(rail_color, 0.72 if unlocked else 0.34), 3.0 + float(rail.unlock_pulse) * 2.0, true)
+	if bool(rail.riding):
+		draw_polyline(points, Color(accent, 0.16), 30.0, true)
+	for arrow_fraction in [0.23, 0.49, 0.75]:
+		var arrow_sample := _rail_sample(points, total_length * arrow_fraction)
+		_draw_rail_arrow(Vector2(arrow_sample.pos), Vector2(arrow_sample.tangent), Color(rail_color, 0.80 if unlocked else 0.30))
+	var entry := points[0]
+	var entry_direction := (points[1] - entry).normalized()
+	var entry_pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.009)
+	draw_circle(entry, float(rail.entrance_radius) + 7.0, Color("0b0907d8"))
+	draw_arc(entry, float(rail.entrance_radius) + 3.0, 0.0, TAU, 36, Color(accent, 0.50 + entry_pulse * 0.30) if unlocked else Color("9a4e42", 0.72), 4.0, true)
+	if unlocked:
+		draw_line(entry - entry_direction * 12.0, entry + entry_direction * 13.0, Color("d8fbff", 0.72 + entry_pulse * 0.20), 4.0, true)
+		_draw_rail_arrow(entry + entry_direction * 4.0, entry_direction, Color("d8fbff"))
+	else:
+		draw_rect(Rect2(entry - Vector2(8.0, 1.0), Vector2(16.0, 13.0)), Color("9a4e42"), true)
+		draw_arc(entry - Vector2(0.0, 2.0), 9.0, PI, TAU, 18, Color("e2b56b"), 3.0, true)
+	var exit_sample := _rail_sample(points, total_length)
+	var exit_pos := Vector2(exit_sample.pos)
+	var exit_tangent := Vector2(exit_sample.tangent)
+	draw_line(exit_pos - exit_tangent * 7.0, exit_pos + exit_tangent * 18.0, Color("efbd61", 0.82), 4.0, true)
+	_draw_rail_arrow(exit_pos + exit_tangent * 10.0, exit_tangent, Color("fff0bd", 0.90))
+
+
+func _draw_rail_arrow(center: Vector2, direction: Vector2, color: Color) -> void:
+	var normal := direction.orthogonal()
+	var points := PackedVector2Array([
+		center + direction * 8.0,
+		center - direction * 6.0 + normal * 6.0,
+		center - direction * 6.0 - normal * 6.0,
+	])
+	draw_colored_polygon(points, color)
+
+
+func _draw_drop_target(target: Dictionary) -> void:
+	var direction := Vector2.RIGHT.rotated(float(target.angle))
+	var normal := direction.orthogonal()
+	var half_width := float(target.half_width)
+	var drop_progress := float(target.drop_progress)
+	var half_thickness := lerpf(float(target.thickness) * 0.5, 2.0, drop_progress)
+	var center := Vector2(target.pos) + normal * drop_progress * 3.0
+	var corners := PackedVector2Array([
+		center - direction * half_width - normal * half_thickness,
+		center + direction * half_width - normal * half_thickness,
+		center + direction * half_width + normal * half_thickness,
+		center - direction * half_width + normal * half_thickness,
+	])
+	var shadow := PackedVector2Array()
+	for corner in corners:
+		shadow.append(corner + Vector2(0.0, 5.0))
+	draw_colored_polygon(shadow, Color("090706c8"))
+	var accent := Color(target.accent_color)
+	draw_colored_polygon(corners, Color("34251d") if bool(target.down) else WOOD.lightened(float(target.pulse) * 0.12))
+	draw_polyline(PackedVector2Array([corners[0], corners[1], corners[2], corners[3], corners[0]]), Color(accent, 0.34 if bool(target.down) else 0.94), 3.0, true)
+	var rivet_alpha := 0.38 if bool(target.down) else 1.0
+	draw_circle(center - direction * (half_width - 8.0), 2.8, Color(GOLD, rivet_alpha))
+	draw_circle(center + direction * (half_width - 8.0), 2.8, Color(GOLD, rivet_alpha))
+	if bool(target.down):
+		draw_circle(center, 4.0, Color(GREEN, 0.78))
+	elif int(target.required_hits) > 1:
+		_text_center(Vector2(center.x - 14.0, center.y + 5.0), 28.0, "%d" % int(target.hits_remaining), 10, Color("fff2d0"))
 
 
 func _draw_explosion(explosion: Dictionary) -> void:

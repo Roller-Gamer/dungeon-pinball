@@ -16,6 +16,8 @@ func collect_room_data() -> Dictionary:
 		"walls": [],
 		"diamonds": [],
 		"rotors": [],
+		"rails": [],
+		"drop_targets": [],
 		"combat_runes": [],
 		"fury_skills": [],
 		"enemies": [],

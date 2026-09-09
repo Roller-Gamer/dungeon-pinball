@@ -10,6 +10,7 @@ Open a scene under `maps/layouts/` to change every room that uses that layout:
 - `classic_layout.tscn` — classic upper banks and the shared cabinet
 - `ring_layout.tscn` — Ring Corridor walls and openings
 - `mechanism_layout.tscn` — Mechanism Hall banks
+- `rail_vault_layout.tscn` — three persistent drop targets guarding a raised rail
 - `open_layout.tscn` — shared outer walls, slingshots, combat runes and Fury skills
 
 Select a wall node and use the 2D move, rotate or scale tools. Its `End Offset`,
@@ -19,8 +20,14 @@ Select a wall node and use the 2D move, rotate or scale tools. Its `End Offset`,
 
 Open a scene under `maps/rooms/` to move enemies and room-specific objects.
 Enemy nodes expose kind, radius, base HP, objective status and Boss guard slot.
-Rooms 1-2 and 1-4 own their diamond nodes; rooms 1-7 and 1-8 own their rotor
-nodes, so those objects can be tuned without changing the other room.
+Rooms 1-2 and 1-4 own their diamond nodes; room 1-8 owns its rotor. Room 1-7
+uses the Rail Vault layout. Its `Line2D` points are directly editable in the 2D
+view, and each drop target exposes its lock group, size, hit count and rebound.
+
+Rails preserve the speed captured at their entrance and only redirect the ball
+along their authored route. A non-empty rail `Lock Group` opens when every drop
+target in the matching `Group Id` is down. Drop targets persist across drains
+and reset only when a new room is loaded.
 
 The runtime still uses the existing custom pinball collision and drawing code.
 The scene nodes are converted to that runtime data when each room begins, which
