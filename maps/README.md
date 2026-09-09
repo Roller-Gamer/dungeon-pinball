@@ -28,7 +28,9 @@ the 2D view; the larger Rail Vault template remains available for a future room.
 Rails preserve the speed captured at their entrance and only redirect the ball
 along their authored route. A non-empty rail `Lock Group` opens when every drop
 target in the matching `Group Id` is down. Drop targets persist across drains
-and reset only when a new room is loaded.
+and reset only when a new room is loaded. `Entrance Radius` controls the real
+capture area independently of the narrow wrought-iron mouth drawn at the first
+point; the current room rails use an `18px` entrance radius.
 
 The runtime still uses the existing custom pinball collision and drawing code.
 The scene nodes are converted to that runtime data when each room begins, which

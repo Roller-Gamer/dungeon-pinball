@@ -1,22 +1,20 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene format=3 uid="uid://dmbysocyf5mwt"]
 
-[ext_resource type="Script" path="res://maps/map_room.gd" id="1_room"]
+[ext_resource type="Script" uid="uid://djo60ndujshew" path="res://maps/map_room.gd" id="1_room"]
 [ext_resource type="PackedScene" path="res://maps/layouts/classic_layout.tscn" id="2_layout"]
-[ext_resource type="Script" path="res://maps/enemy_spawn.gd" id="3_enemy"]
-[ext_resource type="Script" path="res://maps/map_rail.gd" id="4_rail"]
+[ext_resource type="Script" uid="uid://8xi5s3um6qey" path="res://maps/enemy_spawn.gd" id="3_enemy"]
+[ext_resource type="Script" uid="uid://eyd4yjcu4l5e" path="res://maps/map_rail.gd" id="4_rail"]
 
-[node name="Stage1_4" type="Node2D"]
+[node name="Stage1_4" type="Node2D" unique_id=504435676]
 script = ExtResource("1_room")
-layout_id = "classic"
 status_text = "STAGE 1-4"
-objective_title = "DEFEAT THE ELITE"
 
-[node name="Layout" parent="." instance=ExtResource("2_layout")]
+[node name="Layout" parent="." unique_id=1993402812 instance=ExtResource("2_layout")]
 
-[node name="CentreRail" type="Line2D" parent="."]
-points = PackedVector2Array(690, 520, 665, 490, 650, 455, 645, 415, 652, 375, 672, 345, 700, 325, 735, 312, 770, 302, 800, 270)
-width = 16.0
-default_color = Color(0.396078, 0.835294, 0.909804, 0.48)
+[node name="CentreRail" type="Line2D" parent="." unique_id=903374457]
+points = PackedVector2Array(464, 464, 516, 422, 568, 421, 609, 461, 667, 497, 749, 496, 821, 440, 812, 389, 751, 338, 751, 292, 780, 248, 834, 244, 848, 197)
+width = 12.0
+default_color = Color(0.396078, 0.431373, 0.439216, 0.9)
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
@@ -24,14 +22,12 @@ antialiased = true
 script = ExtResource("4_rail")
 rail_id = "stage_1_4_centre_rail"
 lock_group = ""
-entrance_radius = 27.0
-travel_speed = 720.0
-exit_speed_multiplier = 1.0
+entrance_radius = 18.0
 accent_color = Color(0.396078, 0.835294, 0.909804, 1)
 
-[node name="Enemies" type="Node2D" parent="."]
+[node name="Enemies" type="Node2D" parent="." unique_id=824834293]
 
-[node name="EliteCaptain" type="Node2D" parent="Enemies"]
+[node name="EliteCaptain" type="Node2D" parent="Enemies" unique_id=439695615]
 position = Vector2(720, 145)
 script = ExtResource("3_enemy")
 enemy_kind = "boss"
@@ -39,28 +35,24 @@ radius = 52.0
 base_hp = 68
 objective_target = true
 
-[node name="UpperLeftMage" type="Node2D" parent="Enemies"]
+[node name="UpperLeftMage" type="Node2D" parent="Enemies" unique_id=1008179416]
 position = Vector2(540, 245)
 script = ExtResource("3_enemy")
 enemy_kind = "mage"
 radius = 28.0
 base_hp = 18
 
-[node name="UpperRightMage" type="Node2D" parent="Enemies"]
+[node name="UpperRightMage" type="Node2D" parent="Enemies" unique_id=230760066]
 position = Vector2(900, 245)
 script = ExtResource("3_enemy")
 enemy_kind = "mage"
 radius = 28.0
 base_hp = 18
 
-[node name="LowerLeftGoblin" type="Node2D" parent="Enemies"]
+[node name="LowerLeftGoblin" type="Node2D" parent="Enemies" unique_id=792405845]
 position = Vector2(720, 405)
 script = ExtResource("3_enemy")
-radius = 25.0
-base_hp = 20
 
-[node name="LowerRightGoblin" type="Node2D" parent="Enemies"]
+[node name="LowerRightGoblin" type="Node2D" parent="Enemies" unique_id=2096022157]
 position = Vector2(930, 455)
 script = ExtResource("3_enemy")
-radius = 25.0
-base_hp = 20

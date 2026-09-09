@@ -4350,58 +4350,112 @@ func _draw_mechanism_rotor(rotor: Dictionary) -> void:
 		draw_circle(center + Vector2.from_angle(bolt_angle) * 8.0, 2.0, Color("4a2f20"))
 
 
+func _rail_offset_points(points: PackedVector2Array, offset: float) -> PackedVector2Array:
+	var shifted := PackedVector2Array()
+	for point_index in points.size():
+		var tangent: Vector2
+		if point_index == 0:
+			tangent = points[1] - points[0]
+		elif point_index == points.size() - 1:
+			tangent = points[point_index] - points[point_index - 1]
+		else:
+			tangent = points[point_index + 1] - points[point_index - 1]
+		shifted.append(points[point_index] + tangent.normalized().orthogonal() * offset)
+	return shifted
+
+
 func _draw_rail_track(rail: Dictionary) -> void:
 	var points := PackedVector2Array(rail.points)
 	if points.size() < 2:
 		return
 	var unlocked := _rail_is_unlocked(rail)
 	var accent := Color(rail.accent_color)
-	var rail_color := accent if unlocked else Color("6d5c50")
 	var total_length := float(rail.total_length)
-	# Cross ties make the route read as a raised track instead of another wall.
-	var tie_distance := 18.0
+	var iron_dark := Color("171b1c")
+	var iron_mid := Color("667174") if unlocked else Color("453d39")
+	var iron_highlight := Color("b7c0c1", 0.76) if unlocked else Color("79675c", 0.52)
+	var left_rail := _rail_offset_points(points, 6.0)
+	var right_rail := _rail_offset_points(points, -6.0)
+
+	# A broad floor shadow and occasional stone anchors make the rail read as a
+	# raised dungeon fixture instead of a glowing line painted onto the table.
+	draw_polyline(points, Color("050606b8"), 27.0, true)
+	if bool(rail.riding):
+		draw_polyline(points, Color(accent, 0.14), 25.0, true)
+	var anchor_distance := 72.0
+	while anchor_distance < total_length:
+		var anchor_sample := _rail_sample(points, anchor_distance)
+		var anchor_center := Vector2(anchor_sample.pos)
+		draw_circle(anchor_center + Vector2(0.0, 3.0), 9.0, Color("090b0bba"))
+		draw_circle(anchor_center, 7.0, Color("343a39"))
+		draw_circle(anchor_center, 3.0, Color("9a7444"))
+		anchor_distance += 118.0
+
+	# Short aged sleepers, capped with brass rivets, sit underneath two separate
+	# wrought-iron rails. This keeps them visually distinct from wooden walls.
+	var tie_distance := 15.0
 	while tie_distance < total_length:
 		var tie_sample := _rail_sample(points, tie_distance)
 		var tie_center := Vector2(tie_sample.pos)
 		var tie_normal := Vector2(tie_sample.tangent).orthogonal()
-		draw_line(tie_center - tie_normal * 13.0, tie_center + tie_normal * 13.0, Color("100c09c8"), 8.0, true)
-		draw_line(tie_center - tie_normal * 11.0, tie_center + tie_normal * 11.0, WOOD.darkened(0.08), 4.5, true)
-		tie_distance += 38.0
-	draw_polyline(points, Color("090706dc"), 25.0, true)
-	draw_polyline(points, BRONZE.darkened(0.16), 18.0, true)
-	draw_polyline(points, Color("222826"), 10.0, true)
-	draw_polyline(points, Color(rail_color, 0.72 if unlocked else 0.34), 3.0 + float(rail.unlock_pulse) * 2.0, true)
-	if bool(rail.riding):
-		draw_polyline(points, Color(accent, 0.16), 30.0, true)
-	for arrow_fraction in [0.23, 0.49, 0.75]:
-		var arrow_sample := _rail_sample(points, total_length * arrow_fraction)
-		_draw_rail_arrow(Vector2(arrow_sample.pos), Vector2(arrow_sample.tangent), Color(rail_color, 0.80 if unlocked else 0.30))
+		draw_line(tie_center - tie_normal * 13.0 + Vector2(0.0, 3.0), tie_center + tie_normal * 13.0 + Vector2(0.0, 3.0), Color("090706c8"), 8.0, true)
+		draw_line(tie_center - tie_normal * 12.0, tie_center + tie_normal * 12.0, WOOD.darkened(0.15), 6.0, true)
+		draw_line(tie_center - tie_normal * 10.0, tie_center + tie_normal * 10.0, Color("9a6540", 0.55), 1.5, true)
+		draw_circle(tie_center - tie_normal * 7.0, 1.9, Color("b88a4e"))
+		draw_circle(tie_center + tie_normal * 7.0, 1.9, Color("b88a4e"))
+		tie_distance += 31.0
+
+	for rail_edge in [left_rail, right_rail]:
+		draw_polyline(rail_edge, iron_dark, 8.0, true)
+		draw_polyline(rail_edge, iron_mid, 5.0, true)
+		draw_polyline(rail_edge, iron_highlight, 1.5, true)
+
+	# Sparse runes provide the magical accent only when needed; they no longer
+	# turn the whole construction into a neon tube.
+	var rune_distance := 44.0
+	while rune_distance < total_length - 20.0:
+		var rune_sample := _rail_sample(points, rune_distance)
+		var rune_center := Vector2(rune_sample.pos)
+		var rune_tangent := Vector2(rune_sample.tangent)
+		draw_line(rune_center - rune_tangent * 5.0, rune_center + rune_tangent * 5.0, Color(accent, 0.52 if unlocked else 0.15), 2.0 + float(rail.unlock_pulse), true)
+		rune_distance += 76.0
+
 	var entry := points[0]
 	var entry_direction := (points[1] - entry).normalized()
+	var entry_normal := entry_direction.orthogonal()
 	var entry_pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.009)
-	draw_circle(entry, float(rail.entrance_radius) + 7.0, Color("0b0907d8"))
-	draw_arc(entry, float(rail.entrance_radius) + 3.0, 0.0, TAU, 36, Color(accent, 0.50 + entry_pulse * 0.30) if unlocked else Color("9a4e42", 0.72), 4.0, true)
+	var mouth_back := entry - entry_direction * 18.0
+	for mouth_side in [-1.0, 1.0]:
+		var mouth_start: Vector2 = entry + entry_normal * 5.0 * mouth_side
+		var mouth_end: Vector2 = mouth_back + entry_normal * 13.0 * mouth_side
+		draw_line(mouth_start + Vector2(0.0, 3.0), mouth_end + Vector2(0.0, 3.0), Color("070808c8"), 9.0, true)
+		draw_line(mouth_start, mouth_end, iron_mid, 5.0, true)
+		draw_line(mouth_start, mouth_end, iron_highlight, 1.4, true)
+	draw_circle(entry + Vector2(0.0, 2.0), 10.0, Color("080a0ac8"))
+	draw_circle(entry, 7.5, iron_dark)
+	draw_arc(entry, 9.5, 0.0, TAU, 24, Color(accent, 0.38 + entry_pulse * 0.25) if unlocked else Color("9a4e42", 0.62), 2.0, true)
 	if unlocked:
-		draw_line(entry - entry_direction * 12.0, entry + entry_direction * 13.0, Color("d8fbff", 0.72 + entry_pulse * 0.20), 4.0, true)
-		_draw_rail_arrow(entry + entry_direction * 4.0, entry_direction, Color("d8fbff"))
+		var arrow_tip := entry + entry_direction * 6.0
+		var arrow_back := entry - entry_direction * 3.0
+		draw_line(arrow_back + entry_normal * 4.0, arrow_tip, Color(accent, 0.72 + entry_pulse * 0.18), 2.0, true)
+		draw_line(arrow_back - entry_normal * 4.0, arrow_tip, Color(accent, 0.72 + entry_pulse * 0.18), 2.0, true)
 	else:
-		draw_rect(Rect2(entry - Vector2(8.0, 1.0), Vector2(16.0, 13.0)), Color("9a4e42"), true)
-		draw_arc(entry - Vector2(0.0, 2.0), 9.0, PI, TAU, 18, Color("e2b56b"), 3.0, true)
+		draw_rect(Rect2(entry - Vector2(5.0, 0.0), Vector2(10.0, 8.0)), Color("82443b"), true)
+		draw_arc(entry - Vector2(0.0, 1.0), 6.0, PI, TAU, 14, Color("bd9156"), 2.0, true)
+
+	# Twin upturned tips replace the oversized white arrow at the exit. The
+	# existing release burst supplies brief sparks when the warrior leaves.
 	var exit_sample := _rail_sample(points, total_length)
 	var exit_pos := Vector2(exit_sample.pos)
 	var exit_tangent := Vector2(exit_sample.tangent)
-	draw_line(exit_pos - exit_tangent * 7.0, exit_pos + exit_tangent * 18.0, Color("efbd61", 0.82), 4.0, true)
-	_draw_rail_arrow(exit_pos + exit_tangent * 10.0, exit_tangent, Color("fff0bd", 0.90))
-
-
-func _draw_rail_arrow(center: Vector2, direction: Vector2, color: Color) -> void:
-	var normal := direction.orthogonal()
-	var points := PackedVector2Array([
-		center + direction * 8.0,
-		center - direction * 6.0 + normal * 6.0,
-		center - direction * 6.0 - normal * 6.0,
-	])
-	draw_colored_polygon(points, color)
+	var exit_normal := exit_tangent.orthogonal()
+	for exit_side in [-1.0, 1.0]:
+		var exit_start: Vector2 = exit_pos + exit_normal * 6.0 * exit_side - exit_tangent * 4.0
+		var exit_end: Vector2 = exit_pos + exit_normal * 7.5 * exit_side + exit_tangent * 15.0
+		draw_line(exit_start, exit_end, iron_dark, 8.0, true)
+		draw_line(exit_start, exit_end, iron_mid, 5.0, true)
+		draw_line(exit_start, exit_end, iron_highlight, 1.5, true)
+		draw_circle(exit_end, 2.2, Color("d8c095", 0.86))
 
 
 func _draw_drop_target(target: Dictionary) -> void:
