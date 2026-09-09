@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://maps/map_room.gd" id="1_room"]
 [ext_resource type="PackedScene" path="res://maps/layouts/classic_layout.tscn" id="2_layout"]
 [ext_resource type="Script" path="res://maps/enemy_spawn.gd" id="3_enemy"]
-[ext_resource type="Script" path="res://maps/map_diamond.gd" id="4_diamond"]
+[ext_resource type="Script" path="res://maps/map_rail.gd" id="4_rail"]
 
 [node name="Stage1_4" type="Node2D"]
 script = ExtResource("1_room")
@@ -13,12 +13,21 @@ objective_title = "DEFEAT THE ELITE"
 
 [node name="Layout" parent="." instance=ExtResource("2_layout")]
 
-[node name="CentreDiamond" type="Node2D" parent="."]
-position = Vector2(720, 425)
-script = ExtResource("4_diamond")
-half_diagonal = 34.0
-thickness = 10.0
-restitution = 0.92
+[node name="CentreRail" type="Line2D" parent="."]
+points = PackedVector2Array(650, 430, 680, 390, 685, 340, 670, 300, 700, 265, 740, 265, 770, 300, 755, 340, 760, 390, 790, 430)
+width = 16.0
+default_color = Color(0.396078, 0.835294, 0.909804, 0.48)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true
+script = ExtResource("4_rail")
+rail_id = "stage_1_4_centre_rail"
+lock_group = ""
+entrance_radius = 27.0
+travel_speed = 720.0
+exit_speed_multiplier = 1.0
+accent_color = Color(0.396078, 0.835294, 0.909804, 1)
 
 [node name="Enemies" type="Node2D" parent="."]
 

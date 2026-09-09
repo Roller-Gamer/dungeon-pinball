@@ -1011,11 +1011,11 @@ func _run_progression_test() -> void:
 				later_warlords += 1
 			if String(later_enemy.kind) == "grunt" and later_enemy.pos == Vector2(720, 395):
 				centre_melee_count += 1
-		var expected_diamond_count := 1 if expected_room == 4 else 0
+		var expected_diamond_count := 0
 		var expected_centre_melee := 1 if expected_room == 3 else 0
 		var expected_warlords := 1 if expected_room == FINAL_ROOM else 0
 		var expected_rotor_count := 1 if expected_room in [7, 8] else 0
-		var expected_rail_count := 0
+		var expected_rail_count := 1 if expected_room == 4 else 0
 		var expected_drop_target_count := 0
 		if stage_room != expected_room or enemies.size() != int(expected_enemy_counts[expected_room]) or later_mages != int(expected_mage_counts[expected_room]) or later_soldiers != int(expected_soldier_counts[expected_room]) or later_orcs != int(expected_orc_counts[expected_room]) or later_warlords != expected_warlords or diamond_deflectors.size() != expected_diamond_count or mechanism_rotors.size() != expected_rotor_count or rail_tracks.size() != expected_rail_count or drop_targets.size() != expected_drop_target_count or current_layout_id != String(expected_layouts[expected_room]) or centre_melee_count != expected_centre_melee or _goblin_gate_active():
 			push_error("Progression test failed: room 1-%d layout/roster" % expected_room)
@@ -1045,6 +1045,28 @@ func _run_progression_test() -> void:
 				return
 			hero_hp = HERO_MAX_HP
 			shield = 0
+		elif expected_room == 4:
+			var centre_rail: Dictionary = rail_tracks[0]
+			var centre_rail_points := PackedVector2Array(centre_rail.points)
+			_update_board_hover(centre_rail_points[0])
+			var rail_hover := _board_hover_info()
+			if board_hover_type != "rail" or String(rail_hover.get("title", "")) != "RAISED RAIL" or not _rail_is_unlocked(centre_rail):
+				push_error("Progression test failed: stage 1-4 raised rail setup")
+				_quit_test(2)
+				return
+			var entry_direction := (centre_rail_points[1] - centre_rail_points[0]).normalized()
+			ball_position = centre_rail_points[0]
+			ball_velocity = entry_direction * 400.0
+			if not _try_enter_rail() or active_rail_index != 0:
+				push_error("Progression test failed: stage 1-4 rail capture")
+				_quit_test(2)
+				return
+			_advance_active_rail(float(centre_rail.total_length) / float(centre_rail.travel_speed) + 0.1)
+			var exit_direction := (centre_rail_points[centre_rail_points.size() - 1] - centre_rail_points[centre_rail_points.size() - 2]).normalized()
+			if active_rail_index >= 0 or absf(ball_velocity.length() - 400.0) > 0.01 or ball_velocity.dot(exit_direction) <= 0.0:
+				push_error("Progression test failed: stage 1-4 rail exit changed speed or direction")
+				_quit_test(2)
+				return
 		elif expected_room == 5:
 			# Both side crossovers and the new crown gap must be genuinely open to
 			# the ball, not merely separated visually by a hairline break.
@@ -1156,7 +1178,7 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: final room completion")
 		_quit_test(2)
 		return
-	print("PROGRESSION_OK stage=1-%d layouts=classic,ring,mechanism,boss target_gate=1-2/3-persistent objective=elite>exit xp=6/8/12/20/50 level_training=separate equipment=weapon/armor/relic impact=continuous heavy=%d orc_guard=90deg/full-block/4s/+25%% styles=3 oath=%d fury=%.1f blast_targets=%d aftershock=follows axe_return=second-target shield_bash=+5 axes=%d cooldown_min=%.1f thorns=5 retort_targets=%d shield_gain=fractional retain=%d/%d warlord=150hp+15x4/rage60%% guards=4>0 direct=blocked arts=bypass bgm=normal>boss deaths=grunt/elite/boss" % [stage_room, heavy_damage, IRON_OATH_SHIELD_PER_HIT, fury_gain, blast_targets_hit, 1 + axe_count_level, _impact_proc_cooldown(9), retort_targets_hit, first_retained_shield, second_retained_shield])
+	print("PROGRESSION_OK stage=1-%d layouts=classic,ring,mechanism,boss target_gate=1-2/3-persistent rail=1-4/speed-preserved objective=elite>exit xp=6/8/12/20/50 level_training=separate equipment=weapon/armor/relic impact=continuous heavy=%d orc_guard=90deg/full-block/4s/+25%% styles=3 oath=%d fury=%.1f blast_targets=%d aftershock=follows axe_return=second-target shield_bash=+5 axes=%d cooldown_min=%.1f thorns=5 retort_targets=%d shield_gain=fractional retain=%d/%d warlord=150hp+15x4/rage60%% guards=4>0 direct=blocked arts=bypass bgm=normal>boss deaths=grunt/elite/boss" % [stage_room, heavy_damage, IRON_OATH_SHIELD_PER_HIT, fury_gain, blast_targets_hit, 1 + axe_count_level, _impact_proc_cooldown(9), retort_targets_hit, first_retained_shield, second_retained_shield])
 	for player in sfx_players:
 		player.stop()
 		player.stream = null
@@ -1638,7 +1660,7 @@ func _rail_hover_info(rail: Dictionary) -> Dictionary:
 	var progress := _drop_group_progress(String(rail.lock_group))
 	var points := PackedVector2Array(rail.points)
 	return {
-		"title": "VAULT RAIL",
+		"title": "RAISED RAIL",
 		"role": "RAISED TRACK  /  %s" % ("OPEN" if unlocked else "LOCKED"),
 		"line_1": "Ride the full route above normal collisions.",
 		"line_2": "Exit direction changes; entry speed is preserved.",
@@ -2262,7 +2284,7 @@ func _hit_drop_target(target: Dictionary) -> void:
 			_spawn_burst(PackedVector2Array(rail.points)[0], Color(rail.accent_color), 14)
 	_play_sfx(SFX_GATE, -5.5, 1.08, 1.16)
 	screen_flash = maxf(screen_flash, 0.24)
-	_show_status("VAULT RAIL UNLOCKED" if unlocked_rail else "TARGET GATE CLEARED", 1.15)
+	_show_status("RAIL UNLOCKED" if unlocked_rail else "TARGET GATE CLEARED", 1.15)
 
 
 func _drop_group_complete(group_id: String) -> bool:
@@ -2340,7 +2362,7 @@ func _try_enter_rail() -> bool:
 		trail.clear()
 		_play_sfx(SFX_GATE, -7.0, 1.16, 1.24)
 		_spawn_burst(points[0], Color(rail.accent_color), 9)
-		_show_status("VAULT RAIL  SPEED PRESERVED", 0.78)
+		_show_status("RAIL  SPEED PRESERVED", 0.78)
 		return true
 	return false
 
