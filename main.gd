@@ -1048,9 +1048,13 @@ func _run_progression_test() -> void:
 		elif expected_room == 4:
 			var centre_rail: Dictionary = rail_tracks[0]
 			var centre_rail_points := PackedVector2Array(centre_rail.points)
+			var rail_centre_enemy_count := 0
+			for rail_room_enemy in enemies:
+				if String(rail_room_enemy.kind) == "grunt" and Vector2(rail_room_enemy.pos) == Vector2(720.0, 405.0):
+					rail_centre_enemy_count += 1
 			_update_board_hover(centre_rail_points[0])
 			var rail_hover := _board_hover_info()
-			if board_hover_type != "rail" or String(rail_hover.get("title", "")) != "RAISED RAIL" or not _rail_is_unlocked(centre_rail):
+			if board_hover_type != "rail" or String(rail_hover.get("title", "")) != "RAISED RAIL" or not _rail_is_unlocked(centre_rail) or rail_centre_enemy_count != 1:
 				push_error("Progression test failed: stage 1-4 raised rail setup")
 				_quit_test(2)
 				return

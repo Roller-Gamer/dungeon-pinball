@@ -14,7 +14,7 @@ objective_title = "DEFEAT THE ELITE"
 [node name="Layout" parent="." instance=ExtResource("2_layout")]
 
 [node name="CentreRail" type="Line2D" parent="."]
-points = PackedVector2Array(650, 430, 680, 390, 685, 340, 670, 300, 700, 265, 740, 265, 770, 300, 755, 340, 760, 390, 790, 430)
+points = PackedVector2Array(690, 520, 665, 490, 650, 455, 645, 415, 652, 375, 672, 345, 700, 325, 735, 312, 770, 302, 800, 270)
 width = 16.0
 default_color = Color(0.396078, 0.835294, 0.909804, 0.48)
 joint_mode = 2
@@ -54,7 +54,7 @@ radius = 28.0
 base_hp = 18
 
 [node name="LowerLeftGoblin" type="Node2D" parent="Enemies"]
-position = Vector2(510, 455)
+position = Vector2(720, 405)
 script = ExtResource("3_enemy")
 radius = 25.0
 base_hp = 20
