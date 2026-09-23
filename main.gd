@@ -743,17 +743,22 @@ func _run_progression_test() -> void:
 		push_error("Progression test failed: elite objective/XP/exit")
 		_quit_test(2)
 		return
-	# XP can queue training, but the choice is presented only at a safe turn
-	# boundary and remains separate from the equipment treasure pool.
+	# XP presents training on the exact hit that levels the hero. The modal must
+	# freeze and preserve a live shot, while remaining separate from equipment.
 	hero_level = 1
 	hero_xp = 34
 	pending_level_ups = 0
+	ball_active = true
+	waiting_for_launch = false
+	ball_position = Vector2(684.0, 438.0)
+	ball_velocity = Vector2(173.0, -286.0)
+	var training_ball_position := ball_position
+	var training_ball_velocity := ball_velocity
 	_grant_enemy_experience({"kind": "grunt", "is_warlord": false, "pos": Vector2.ZERO, "radius": 20.0})
-	_show_level_up_selection()
 	upgrade_choices = [_upgrade_definition("sharpened_blade")]
 	_refresh_training_selection_ui()
-	if not training_selection_ui.visible:
-		push_error("Progression test failed: training scene not presented")
+	if not training_selection_ui.visible or not upgrade_selection_active or not ball_active or ball_position != training_ball_position or ball_velocity != training_ball_velocity:
+		push_error("Progression test failed: immediate training did not preserve the live ball")
 		_quit_test(2)
 		return
 	var training_touch := InputEventScreenTouch.new()
@@ -765,6 +770,10 @@ func _run_progression_test() -> void:
 		_quit_test(2)
 		return
 	_complete_upgrade_selection()
+	if not ball_active or ball_position != training_ball_position or ball_velocity != training_ball_velocity:
+		push_error("Progression test failed: live ball did not resume after training")
+		_quit_test(2)
+		return
 	upgrade_levels.erase("sharpened_blade")
 	upgrade_history.clear()
 	impact_coefficient = 1.0
@@ -2234,6 +2243,8 @@ func _simulate_ball(delta: float) -> void:
 					else:
 						_damage_enemy(enemy, false, true, incoming_impact_speed)
 				_on_ball_bounce(ball_position)
+				if upgrade_selection_active:
+					return
 
 		var speed := ball_velocity.length()
 		var max_speed := _current_max_speed()
@@ -3077,6 +3088,12 @@ func _grant_enemy_experience(enemy: Dictionary) -> void:
 	if levels_gained > 0:
 		screen_flash = maxf(screen_flash, 0.28)
 		_show_status("LEVEL %d  TRAINING READY" % hero_level, 1.2)
+		# Interrupt the current shot immediately, but keep the live ball state so
+		# the selection modal freezes and later resumes the exact same shot.
+		# One impact can defeat several enemies; later level gains remain queued
+		# behind an already-open training selection instead of reopening it.
+		if not upgrade_selection_active:
+			_show_level_up_selection(ball_active)
 
 
 func _add_energy(amount: float) -> void:
@@ -3368,16 +3385,16 @@ func _show_upgrade_selection() -> void:
 	_open_upgrade_selection(available)
 
 
-func _show_level_up_selection() -> void:
+func _show_level_up_selection(preserve_ball_state: bool = false) -> void:
 	upgrade_reward_kind = "LEVEL_UP"
 	var available: Array[Dictionary] = []
 	for definition in TRAINING_POOL:
 		if int(upgrade_levels.get(String(definition.id), 0)) < int(definition.max_level):
 			available.append(definition.duplicate(true))
-	_open_upgrade_selection(available)
+	_open_upgrade_selection(available, preserve_ball_state)
 
 
-func _open_upgrade_selection(available: Array[Dictionary]) -> void:
+func _open_upgrade_selection(available: Array[Dictionary], preserve_ball_state: bool = false) -> void:
 	_clear_touch_inputs()
 	upgrade_choices.clear()
 	available.shuffle()
@@ -3388,7 +3405,8 @@ func _open_upgrade_selection(available: Array[Dictionary]) -> void:
 	upgrade_exit_timer = -1.0
 	upgrade_selected_index = -1
 	waiting_for_launch = false
-	ball_active = false
+	if not preserve_ball_state:
+		ball_active = false
 	status_timer = 0.0
 	_refresh_equipment_selection_ui()
 	_refresh_training_selection_ui()
@@ -3428,9 +3446,11 @@ func _complete_upgrade_selection() -> void:
 		training_selection_ui.hide_selection()
 	if completed_kind == "LEVEL_UP":
 		if pending_level_ups > 0:
-			_show_level_up_selection()
+			_show_level_up_selection(ball_active)
 		elif room_clear_resolution_pending:
 			_continue_room_clear_resolution()
+		elif ball_active:
+			_show_status("TRAINING COMPLETE  KEEP FIGHTING", 1.0)
 		else:
 			prepare_ball()
 			_show_status("TRAINING COMPLETE  YOUR TURN", 1.0)
